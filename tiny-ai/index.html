@@ -61,6 +61,11 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--a); outline
 .log { font-family: var(--mono); font-size: .76rem; color: var(--new); margin: 0; min-height: 1.2em; }
 .help { font-size: .86rem; color: var(--muted); margin: 0; }
 .help strong { color: var(--fg); font-weight: 600; }
+.slider { display: grid; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.slider label { display: flex; justify-content: space-between; font-weight: 600; }
+.slider b { font-family: var(--mono); color: var(--new); }
+.slider input { width: 100%; accent-color: var(--new); }
+.slider .d { font-size: .82rem; color: var(--muted); }
 .label { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px 2px; }
 #lmhelp { margin-top: 6px; }
 </style>
@@ -115,8 +120,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--a); outline
   <label class="toggle" for="grow">
     <input type="checkbox" id="grow" checked>
     <span><span class="t">Grow new neurons while learning</span><br>
-    <span class="d">Starts with 2 neurons and adds one whenever learning stalls, up to 24. Turn off to use the fixed 100-parameter network.</span></span>
+    <span class="d">Starts with 2 neurons and adds one whenever learning stalls, up to the limit below. Turn off to use the fixed 100-parameter network.</span></span>
   </label>
+
+  <div class="slider">
+    <label for="maxn"><span class="t">Neuron limit</span> <b id="maxnv">24</b></label>
+    <input type="range" id="maxn" min="4" max="200" step="4" value="24">
+    <span class="d">More neurons means slower training, especially on a phone. Above about 100 it gets sluggish.</span>
+  </div>
 
   <div class="modes" id="shapes" role="group" aria-label="Dot pattern">
     <button data-shape="moons" aria-pressed="true">Crescents</button>
@@ -137,7 +148,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--a); outline
 // ---- neural network (tanh hidden layers, sigmoid output) ----
 const FIXED = [2, 13, 4, 1];      // exactly 100 parameters
 const START = [2, 1, 1, 1];       // growing mode starts here: 2 neurons, can only draw a straight line
-const MAX_NEURONS = 24, PATIENCE = 30;
+let maxNeurons = 24; const PATIENCE = 30;
 let net, opt, growing = true;
 function gauss(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function makeNet(sizes){
@@ -202,7 +213,7 @@ function growNeuron(h){
 function maybeGrow(loss, acc){
   if (!growing) return;
   if (loss < best*0.97){ best = loss; stall = 0; return; }
-  if (++stall < PATIENCE || acc >= 0.99 || nNeurons() >= MAX_NEURONS) return;
+  if (++stall < PATIENCE || acc >= 0.99 || nNeurons() >= maxNeurons) return;
   const [ , h1, h2] = sizes();
   const h = h1 <= 2*h2 ? 1 : 2;              // keep the first layer about twice as wide as the second
   growNeuron(h);
@@ -293,7 +304,7 @@ function hexRgb(h){ h=h.replace('#',''); return [0,2,4].map(i=>parseInt(h.slice(
 let probe=null;
 function drawMap(){
   const A=hexRgb(css('--a')), Bc=hexRgb(css('--b')), S=hexRgb(css('--surface'));
-  const R=60, cell=cv.width/R, img=ctx.createImageData(cv.width,cv.height), grid=[];
+  const R=nParams()>3000?36:60, cell=cv.width/R, img=ctx.createImageData(cv.width,cv.height), grid=[];
   for (let gy=0;gy<R;gy++) for (let gx=0;gx<R;gx++) grid.push(predict(toWorld((gx+.5)*cell,(gy+.5)*cell)));
   for (let py=0;py<cv.height;py++){
     const gy=Math.min(R-1,(py/cell)|0);
@@ -345,7 +356,8 @@ function refresh(){ drawMap(); drawNet(); updateStats(); if (probe) showProbe();
 
 function loop(){
   if (!running) return;
-  for (let i=0;i<3;i++) trainEpoch();
+  const reps = nParams()>3000 ? 1 : nParams()>800 ? 2 : 3;
+  for (let i=0;i<reps;i++) trainEpoch();
   refresh();
   if (learnMode==='normal' && !drift && epoch >= (growing ? 1500 : 600)) return stop();
   requestAnimationFrame(loop);
@@ -387,6 +399,8 @@ function setLM(m){ learnMode=m; lastMis='–';
   document.querySelectorAll('#lmodes button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.lm===m));
   document.getElementById('lmhelp').textContent=LMHELP[m]; updateStats(); }
 document.querySelectorAll('#lmodes button').forEach(b=>b.onclick=()=>setLM(b.dataset.lm));
+const maxIn=document.getElementById('maxn');
+maxIn.oninput=()=>{ maxNeurons=+maxIn.value; document.getElementById('maxnv').textContent=maxNeurons; stall=0; };
 document.getElementById('drift').onchange=e=>{ drift=e.target.checked; };
 const redraw=()=>{ drawMap(); drawNet(); };
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
