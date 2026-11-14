@@ -1,0 +1,385 @@
+<meta charset="utf-8">
+<title>Tiny Writer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow column. Top: where the model is now (stage, loss curve). Middle: its writing over time. Bottom: try it, feed it books. */
+:root {
+  --bg: #edf1f4; --surface: #ffffff; --fg: #142029; --muted: #5b6b76; --line: #d2dbe1;
+  --sea: #1f6f8b; --ink: #142029; --new: #7a4fd6; --warm: #c9772c;
+  --accent: #142029; --on-accent: #ffffff;
+  --display: "Space Grotesk", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d151b; --surface: #15212a; --fg: #e3ecf1; --muted: #8ea0ab; --line: #253641;
+  --sea: #4fb3d6; --ink: #e3ecf1; --new: #b59af5; --warm: #eea25c;
+  --accent: #e3ecf1; --on-accent: #0d151b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d151b; --surface: #15212a; --fg: #e3ecf1; --muted: #8ea0ab; --line: #253641;
+  --sea: #4fb3d6; --ink: #e3ecf1; --new: #b59af5; --warm: #eea25c;
+  --accent: #e3ecf1; --on-accent: #0d151b; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 560px; margin: 0 auto; padding-block: 20px 36px; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-family: var(--display); font-size: 1.7rem; margin: 0; letter-spacing: -.01em; }
+h2 { font-family: var(--display); font-size: 1.05rem; margin: 6px 0 0; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: .92rem; }
+.chips { font-family: var(--mono); font-size: .76rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips span { border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; }
+.chips b { color: var(--fg); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.now .k, .stat .k, .label { font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.now .v { font-family: var(--display); font-size: 1.25rem; font-weight: 700; color: var(--sea); }
+#chart { width: 100%; aspect-ratio: 600 / 170; display: block; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.stat { min-width: 0; }
+.stat .v { font-family: var(--mono); font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button, .filebtn { font: 600 .95rem var(--body); border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); cursor: pointer; flex: 1 1 0; min-height: 46px; text-align: center; }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); flex: 2 1 0; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, input:focus-visible, .filebtn:focus-within { outline: 3px solid var(--sea); outline-offset: 2px; }
+
+.samples { display: flex; flex-direction: column; gap: 8px; }
+.sample { border-left: 3px solid var(--line); padding: 2px 0 2px 10px; }
+.sample.latest { border-left-color: var(--new); }
+.sample .meta { font-size: .74rem; color: var(--muted); }
+.sample .meta b { color: var(--fg); font-weight: 600; }
+pre { font-family: var(--mono); font-size: .8rem; white-space: pre-wrap; overflow-wrap: anywhere; margin: 2px 0 0; }
+.empty { color: var(--muted); font-size: .88rem; margin: 0; }
+
+input[type=text] { font: .95rem var(--body); padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+.temp { display: grid; gap: 2px; }
+.temp label { display: flex; justify-content: space-between; font-size: .86rem; font-weight: 600; }
+.temp b { font-family: var(--mono); color: var(--sea); }
+.temp input { width: 100%; accent-color: var(--sea); }
+.temp .d { font-size: .78rem; color: var(--muted); }
+#out { min-height: 3em; background: var(--bg); border-radius: 10px; padding: 10px; margin: 0; }
+#out .prompt { color: var(--sea); font-weight: 600; }
+
+.books { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
+.books li { display: flex; justify-content: space-between; gap: 8px; }
+.books span:last-child { font-family: var(--mono); color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.filebtn { position: relative; display: block; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.help { font-size: .86rem; color: var(--muted); margin: 0; }
+.help strong { color: var(--fg); font-weight: 600; }
+.warn { color: var(--warm); font-size: .86rem; margin: 0; }
+</style>
+
+<main>
+  <header>
+    <h1>Tiny Writer</h1>
+    <p class="sub">A miniature GPT that learns to write by reading Moby-Dick one letter at a time, starting from nothing.</p>
+    <div class="chips" id="chips"><span>loading…</span></div>
+  </header>
+
+  <section class="card now" aria-live="polite">
+    <div><div class="k">What it can do now</div><div class="v" id="stage">Not trained yet: random letters</div></div>
+    <canvas id="chart" width="600" height="170" aria-label="Loss over training steps"></canvas>
+    <div class="stats">
+      <div class="stat"><div class="k">Step</div><div class="v" id="step">0</div></div>
+      <div class="stat"><div class="k">Loss</div><div class="v" id="loss">–</div></div>
+      <div class="stat"><div class="k">Speed</div><div class="v" id="speed">–</div></div>
+      <div class="stat"><div class="k">Letters read</div><div class="v" id="seen">0</div></div>
+    </div>
+    <p class="warn" id="warn" hidden></p>
+  </section>
+
+  <div class="row">
+    <button class="primary" id="train" disabled>Loading…</button>
+    <button id="reset" disabled>Start over</button>
+  </div>
+
+  <section class="card">
+    <h2>Its writing over time</h2>
+    <p class="help">Every so often it writes a short passage starting from “The whale”. Newest first.</p>
+    <div class="samples" id="samples"><p class="empty">Press Train. The first sample appears straight away, before it has learned anything.</p></div>
+  </section>
+
+  <section class="card">
+    <h2>Try it</h2>
+    <input type="text" id="prompt" value="Call me" aria-label="Start of the text">
+    <div class="temp">
+      <label for="temp">Creativity <b id="tempv">0.8</b></label>
+      <input type="range" id="temp" min="0.2" max="1.5" step="0.1" value="0.8">
+      <span class="d">Low: safe and repetitive. High: wilder, more mistakes.</span>
+    </div>
+    <button id="write" disabled>Write 300 letters</button>
+    <pre id="out"></pre>
+  </section>
+
+  <section class="card">
+    <h2>Books it reads</h2>
+    <ul class="books" id="books"></ul>
+    <label class="filebtn">Add a book (.txt file)
+      <input type="file" id="file" accept=".txt,text/plain" multiple>
+    </label>
+    <p class="help">Added books join the reading pile straight away, and it keeps learning without starting over. Plain-text books are free at Project Gutenberg. Added books are not kept if you close the page.</p>
+  </section>
+
+  <section class="card">
+    <h2>How it works</h2>
+    <p class="help">It plays one game: <strong>guess the next letter</strong>. It sees 64 letters of the book, guesses the 65th, and nudges its numbers when it's wrong. That's the same game GPT-1 was trained on, with words broken into pieces instead of letters. <strong>Loss</strong> measures how surprised it is by the real next letter: 4.56 means pure guessing among 96 characters, and lower is better. It has 2 transformer layers, 4 attention heads and about 110,000 parameters, roughly 1,000 times smaller than GPT-1. Progress is saved in this browser, so you can close the page and continue later.</p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script>
+// ---------- characters ----------
+const VOCAB = ['\n', ...Array.from({length: 95}, (_, i) => String.fromCharCode(32 + i))];
+const V = VOCAB.length, stoi = new Map(VOCAB.map((c, i) => [c, i]));
+function clean(t){
+  return t.replace(/\r\n?/g, '\n').replace(/[—]/g, '--').replace(/[–]/g, '-')
+    .replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, '...')
+    .normalize('NFKD').replace(/[^\n\x20-\x7e]/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n');
+}
+const encode = t => Array.from(clean(t), c => stoi.get(c)).filter(i => i !== undefined);
+
+// ---------- model: a tiny GPT ----------
+const T = 64, D = 64, H = 4, HD = D / H, NL = 2, B = 16, LR = 2e-3;
+let P, vars, opt;
+function initModel(){
+  if (vars) vars.forEach(([, v]) => v.dispose());
+  const n = (s, std) => tf.variable(tf.randomNormal(s, 0, std));
+  const z = s => tf.variable(tf.zeros(s)), o = s => tf.variable(tf.ones(s));
+  const proj = .02 / Math.sqrt(2 * NL);
+  P = { wte: n([V, D], .02), wpe: n([T, D], .02), lnf_g: o([D]), lnf_b: z([D]), head: n([D, V], .02), layers: [] };
+  for (let l = 0; l < NL; l++) P.layers.push({
+    ln1_g: o([D]), ln1_b: z([D]), wqkv: n([D, 3 * D], .02), bqkv: z([3 * D]), wo: n([D, D], proj), bo: z([D]),
+    ln2_g: o([D]), ln2_b: z([D]), w1: n([D, 4 * D], .02), b1: z([4 * D]), w2: n([4 * D, D], proj), b2: z([D]) });
+  vars = [];
+  for (const [k, v] of Object.entries(P)) if (k !== 'layers') vars.push([k, v]);
+  P.layers.forEach((l, i) => Object.entries(l).forEach(([k, v]) => vars.push([`l${i}.${k}`, v])));
+  opt = tf.train.adam(LR);
+}
+const nParams = () => vars.reduce((s, [, v]) => s + v.size, 0);
+function ln(x, g, b){ const { mean, variance } = tf.moments(x, -1, true); return x.sub(mean).div(variance.add(1e-5).sqrt()).mul(g).add(b); }
+function forward(x){                      // x: int32 [batch, len] -> logits [batch*len, V]
+  const [Bn, Tc] = x.shape;
+  let h = tf.gather(P.wte, x.flatten()).reshape([Bn, Tc, D]).add(P.wpe.slice([0, 0], [Tc, D]));
+  const mask = tf.linalg.bandPart(tf.ones([Tc, Tc]), -1, 0).sub(1).mul(1e9);   // hide future letters
+  for (const l of P.layers){
+    const a = ln(h, l.ln1_g, l.ln1_b).reshape([Bn * Tc, D]);
+    const qkv = a.matMul(l.wqkv).add(l.bqkv).reshape([Bn, Tc, 3, H, HD]).transpose([2, 0, 3, 1, 4]);
+    const [q, k, v] = tf.unstack(qkv, 0).map(t => t.reshape([Bn * H, Tc, HD]));
+    const att = tf.softmax(tf.matMul(q, k, false, true).mul(1 / Math.sqrt(HD)).add(mask), -1);
+    const y = tf.matMul(att, v).reshape([Bn, H, Tc, HD]).transpose([0, 2, 1, 3]).reshape([Bn * Tc, D]);
+    h = h.add(y.matMul(l.wo).add(l.bo).reshape([Bn, Tc, D]));
+    const m = ln(h, l.ln2_g, l.ln2_b).reshape([Bn * Tc, D]);
+    h = h.add(tf.relu(m.matMul(l.w1).add(l.b1)).matMul(l.w2).add(l.b2).reshape([Bn, Tc, D]));
+  }
+  return ln(h, P.lnf_g, P.lnf_b).reshape([Bn * Tc, D]).matMul(P.head);
+}
+
+// ---------- data ----------
+let corpus = new Uint8Array(0), books = [];
+function addBook(name, text){
+  const ids = encode(text);
+  if (ids.length < T + 2) return 0;
+  const next = new Uint8Array(corpus.length + ids.length + 2);
+  next.set(corpus); next.set([0, 0], corpus.length); next.set(ids, corpus.length + 2);
+  corpus = next; books.push({ name, n: ids.length }); renderBooks();
+  return ids.length;
+}
+function batch(){
+  const x = new Int32Array(B * T), y = new Int32Array(B * T);
+  for (let b = 0; b < B; b++){
+    const s = Math.floor(Math.random() * (corpus.length - T - 1));
+    for (let t = 0; t < T; t++){ x[b * T + t] = corpus[s + t]; y[b * T + t] = corpus[s + t + 1]; }
+  }
+  return { x: tf.tensor2d(x, [B, T], 'int32'), y: tf.tensor1d(y, 'int32') };
+}
+
+// ---------- training ----------
+let step = 0, running = false, ema = null, history = [], samples = [];
+const SAMPLE_AT = new Set([0, 50, 100, 200, 350, 500, 750, 1000, 1500, 2000, 3000]);
+const sampleDue = s => SAMPLE_AT.has(s) || (s > 3000 && s % 1000 === 0);
+async function trainStep(){
+  const { x, y } = batch();
+  const cost = tf.tidy(() => opt.minimize(() => tf.losses.softmaxCrossEntropy(tf.oneHot(y, V), forward(x)), true, vars.map(([, v]) => v)));
+  const l = (await cost.data())[0];
+  cost.dispose(); x.dispose(); y.dispose();
+  step++;
+  ema = ema === null ? l : ema * .95 + l * .05;
+  if (step % 5 === 0) history.push([step, ema]);
+  return l;
+}
+async function loop(){
+  let t0 = performance.now(), n0 = step;
+  while (running){
+    if (sampleDue(step)) await takeSample();
+    await trainStep();
+    if (step % 5 === 0){
+      const now = performance.now();
+      if (now - t0 > 1000){ speed = (step - n0) / ((now - t0) / 1000); t0 = now; n0 = step; }
+      render();
+      await tf.nextFrame();
+    }
+    if (step % 250 === 0) save();
+  }
+}
+let speed = 0;
+const trainBtn = document.getElementById('train');
+trainBtn.onclick = () => {
+  if (!running && corpus.length < T + 2) return showWarn('Add a book first, so it has something to read.');
+  running = !running;
+  trainBtn.textContent = running ? 'Pause' : 'Train';
+  if (running) loop(); else save();
+};
+
+// ---------- writing ----------
+function pick(p, temp){
+  let m = -Infinity; const w = new Float32Array(p.length);
+  for (let i = 0; i < p.length; i++){ w[i] = Math.log(p[i] + 1e-12) / temp; if (w[i] > m) m = w[i]; }
+  let s = 0; for (let i = 0; i < w.length; i++){ w[i] = Math.exp(w[i] - m); s += w[i]; }
+  let r = Math.random() * s; for (let i = 0; i < w.length; i++){ r -= w[i]; if (r <= 0) return i; }
+  return w.length - 1;
+}
+async function write(prompt, n, temp, onChunk){
+  const ids = encode(prompt); if (!ids.length) ids.push(0);
+  let out = '';
+  for (let i = 0; i < n; i++){
+    // always feed exactly T letters (padded with line breaks) so the graphics chip compiles its code once
+    const ctx = ids.slice(-T), padded = new Array(T - ctx.length).fill(0).concat(ctx);
+    const probs = tf.tidy(() => tf.softmax(forward(tf.tensor2d(padded, [1, T], 'int32')).slice([T - 1, 0], [1, V])).squeeze());
+    const p = await probs.data(); probs.dispose();
+    const c = pick(p, temp); ids.push(c); out += VOCAB[c];
+    if (onChunk && i % 15 === 14){ onChunk(out); await tf.nextFrame(); }
+  }
+  if (onChunk) onChunk(out);
+  return out;
+}
+async function takeSample(){
+  const text = await write('The whale', 160, .8);
+  samples.unshift({ step, loss: ema, text: 'The whale' + text });
+  renderSamples();
+}
+const writeBtn = document.getElementById('write');
+writeBtn.onclick = async () => {
+  const wasRunning = running; running = false; writeBtn.disabled = true; trainBtn.disabled = true;
+  const prompt = document.getElementById('prompt').value || 'The';
+  const out = document.getElementById('out');
+  out.innerHTML = ''; const ps = document.createElement('span'); ps.className = 'prompt'; ps.textContent = prompt;
+  const rest = document.createTextNode(''); out.append(ps, rest);
+  await new Promise(r => setTimeout(r, 0));
+  await write(prompt, 300, +document.getElementById('temp').value, t => { rest.textContent = t; });
+  writeBtn.disabled = false; trainBtn.disabled = false;
+  if (wasRunning){ running = true; loop(); }
+};
+document.getElementById('temp').oninput = e => { document.getElementById('tempv').textContent = (+e.target.value).toFixed(1); };
+
+// ---------- display ----------
+function stageFor(l){
+  if (l === null) return 'Not trained yet: random letters';
+  if (l > 3.3) return 'Random letters';
+  if (l > 2.7) return 'Learning which letters are common';
+  if (l > 2.3) return 'Letter pairs, spaces between “words”';
+  if (l > 1.95) return 'Short real words appearing';
+  if (l > 1.7) return 'Mostly real words, broken grammar';
+  return 'Phrases in the style of the book';
+}
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
+function render(){
+  document.getElementById('step').textContent = step.toLocaleString();
+  document.getElementById('loss').textContent = ema === null ? '–' : ema.toFixed(2);
+  document.getElementById('speed').textContent = running && speed ? speed.toFixed(1) + '/s' : '–';
+  document.getElementById('seen').textContent = fmt(step * B * T);
+  document.getElementById('stage').textContent = stageFor(ema);
+  drawChart();
+}
+function drawChart(){
+  const cv = document.getElementById('chart'), c = cv.getContext('2d'), W = cv.width, Hh = cv.height;
+  const L = 34, R = 8, Tp = 10, Bt = 22, top = 4.8, maxS = Math.max(500, step);
+  const X = s => L + (s / maxS) * (W - L - R), Y = v => Tp + (1 - Math.min(v, top) / top) * (Hh - Tp - Bt);
+  c.clearRect(0, 0, W, Hh);
+  c.font = '18px JetBrains Mono, monospace'; c.fillStyle = css('--muted'); c.strokeStyle = css('--line'); c.lineWidth = 1;
+  for (const v of [1, 2, 3, 4]){ c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(W - R, Y(v)); c.stroke(); c.fillText(v, 6, Y(v) + 6); }
+  c.setLineDash([6, 6]); c.strokeStyle = css('--warm'); c.beginPath(); c.moveTo(L, Y(4.56)); c.lineTo(W - R, Y(4.56)); c.stroke(); c.setLineDash([]);
+  c.fillStyle = css('--warm'); c.textAlign = 'right'; c.fillText('pure guessing', W - R, Y(4.56) - 6); c.textAlign = 'left';
+  c.fillStyle = css('--muted'); c.fillText('0', L, Hh - 2); c.textAlign = 'right'; c.fillText(maxS.toLocaleString() + ' steps', W - R, Hh - 2); c.textAlign = 'left';
+  if (history.length > 1){
+    c.strokeStyle = css('--sea'); c.lineWidth = 3; c.beginPath();
+    history.forEach(([s, v], i) => i ? c.lineTo(X(s), Y(v)) : c.moveTo(X(s), Y(v))); c.stroke();
+    const [s, v] = history.at(-1); c.fillStyle = css('--sea'); c.beginPath(); c.arc(X(s), Y(v), 5, 0, 7); c.fill();
+  }
+}
+function renderSamples(){
+  const el = document.getElementById('samples'); el.innerHTML = '';
+  if (!samples.length){ el.innerHTML = '<p class="empty">Press Train. The first sample appears straight away, before it has learned anything.</p>'; return; }
+  samples.forEach((s, i) => {
+    const d = document.createElement('div'); d.className = 'sample' + (i ? '' : ' latest');
+    const meta = document.createElement('div'); meta.className = 'meta';
+    meta.innerHTML = `<b>Step ${s.step.toLocaleString()}</b> · ${s.loss === null ? 'untrained' : 'loss ' + s.loss.toFixed(2)} · ${stageFor(s.loss)}`;
+    const pre = document.createElement('pre'); pre.textContent = s.text.replace(/\n{2,}/g, '\n');
+    d.append(meta, pre); el.append(d);
+  });
+}
+function renderBooks(){
+  const el = document.getElementById('books'); el.innerHTML = '';
+  for (const b of books){ const li = document.createElement('li'); const a = document.createElement('span'), n = document.createElement('span');
+    a.textContent = b.name; n.textContent = fmt(b.n) + ' letters'; li.append(a, n); el.append(li); }
+}
+function renderChips(){
+  document.getElementById('chips').innerHTML =
+    `<span><b>${nParams().toLocaleString()}</b> parameters</span><span>GPT-1: 117,000,000</span><span>runs on ${tf.getBackend() === 'webgl' ? 'graphics chip' : tf.getBackend()}</span>`;
+}
+
+// ---------- saving progress in this browser ----------
+const KEY = 'tiny-writer-v1';
+function b64(f32){ const u = new Uint8Array(f32.buffer); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+function unb64(s){ const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Float32Array(u.buffer); }
+function save(){
+  try {
+    const w = {}; for (const [k, v] of vars) w[k] = b64(v.dataSync());
+    localStorage.setItem(KEY, JSON.stringify({ step, ema, history: history.slice(-400), samples: samples.slice(0, 12), w }));
+  } catch (e) {}
+}
+function load(){
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!s) return false;
+    for (const [k, v] of vars){ if (!s.w[k]) return false; v.assign(tf.tensor(unb64(s.w[k]), v.shape)); }
+    step = s.step; ema = s.ema; history = s.history || []; samples = s.samples || []; return true;
+  } catch (e) { return false; }
+}
+document.getElementById('reset').onclick = () => {
+  running = false; trainBtn.textContent = 'Train';
+  initModel(); step = 0; ema = null; history = []; samples = [];
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  render(); renderSamples();
+};
+
+// ---------- books from the file picker ----------
+document.getElementById('file').onchange = async e => {
+  for (const f of e.target.files){ const n = addBook(f.name.replace(/\.txt$/i, ''), await f.text());
+    if (!n) showWarn(`${f.name} had no readable English text.`); }
+  e.target.value = '';
+};
+function showWarn(t){ const w = document.getElementById('warn'); w.textContent = t; w.hidden = false; }
+
+// ---------- start ----------
+(async () => {
+  try { await tf.setBackend('webgl'); } catch (e) { await tf.setBackend('cpu'); }
+  await tf.ready();
+  initModel(); renderChips();
+  const resumed = load();
+  try {
+    const r = await fetch('moby-dick.txt'); if (!r.ok) throw new Error(r.status);
+    addBook('Moby-Dick, Herman Melville (1851)', await r.text());
+  } catch (e) { showWarn('Could not load Moby-Dick. Add a .txt book below to start training.'); }
+  render(); renderSamples();
+  if (tf.getBackend() !== 'webgl') showWarn('This browser has no graphics acceleration, so training will be slow.');
+  trainBtn.textContent = resumed ? `Continue from step ${step.toLocaleString()}` : 'Train';
+  trainBtn.disabled = false; document.getElementById('reset').disabled = false; writeBtn.disabled = false;
+  new MutationObserver(drawChart).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawChart);
+})();
+</script>
