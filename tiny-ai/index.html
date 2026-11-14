@@ -1,0 +1,245 @@
+<title>Tiny AI 100</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow column; the live decision map is the centrepiece, controls sit under the thumb. */
+:root {
+  --bg: #eef2f3; --surface: #ffffff; --fg: #15232a; --muted: #5a6b72; --line: #d3dde0;
+  --a: #0f8b8d; --a-soft: rgba(15,139,141,.22);
+  --b: #d9822b; --b-soft: rgba(217,130,43,.24);
+  --accent: #15232a; --on-accent: #ffffff;
+  --display: "Space Grotesk", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e171b; --surface: #16232a; --fg: #e4eef0; --muted: #8fa3aa; --line: #263840;
+  --a: #34c3c5; --a-soft: rgba(52,195,197,.22); --b: #f2a356; --b-soft: rgba(242,163,86,.22);
+  --accent: #e4eef0; --on-accent: #0e171b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e171b; --surface: #16232a; --fg: #e4eef0; --muted: #8fa3aa; --line: #263840;
+  --a: #34c3c5; --a-soft: rgba(52,195,197,.22); --b: #f2a356; --b-soft: rgba(242,163,86,.22);
+  --accent: #e4eef0; --on-accent: #0e171b; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 520px; margin: 0 auto; padding-block: 20px 32px; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--display); font-size: 1.7rem; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: .92rem; }
+.arch { font-family: var(--mono); font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.arch span { border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; }
+.arch b { color: var(--fg); }
+
+.stage { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+canvas { display: block; width: 100%; aspect-ratio: 1; max-width: 100%; touch-action: none; cursor: crosshair; }
+.readout { position: absolute; left: 10px; top: 10px; font-family: var(--mono); font-size: .78rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+.readout[hidden] { display: none !important; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.stat .k { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.stat .v { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: 600 .95rem var(--body); border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); cursor: pointer; flex: 1 1 0; min-height: 46px; }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); flex: 2 1 0; }
+button:focus-visible { outline: 3px solid var(--a); outline-offset: 2px; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.modes button { border: 0; padding: 9px 6px; font-size: .82rem; min-height: 40px; background: transparent; }
+.modes button[aria-pressed="true"] { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+.help { font-size: .86rem; color: var(--muted); margin: 0; }
+.help strong { color: var(--fg); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <h1>Tiny AI · 100 parameters</h1>
+    <p class="sub">A neural network learning to separate two groups of dots, right in your browser.</p>
+    <div class="arch"><span>2 → 13 → 4 → 1</span><span>39 + 56 + 5 = <b>100 params</b></span></div>
+  </header>
+
+  <div class="stage">
+    <canvas id="map" width="600" height="600" aria-label="Decision map. Tap to test or add points."></canvas>
+    <div class="readout" id="readout" hidden></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Epoch</div><div class="v" id="ep">0</div></div>
+    <div class="stat"><div class="k">Loss</div><div class="v" id="loss">–</div></div>
+    <div class="stat"><div class="k">Accuracy</div><div class="v" id="acc">–</div></div>
+  </div>
+
+  <div class="row">
+    <button class="primary" id="train">Train</button>
+    <button id="reset">New network</button>
+    <button id="data">New dots</button>
+  </div>
+
+  <div class="modes" role="group" aria-label="What a tap does">
+    <button id="m-test" aria-pressed="true">Tap: test</button>
+    <button id="m-a" aria-pressed="false"><span class="dot" style="background:var(--a)"></span>Add teal</button>
+    <button id="m-b" aria-pressed="false"><span class="dot" style="background:var(--b)"></span>Add orange</button>
+  </div>
+
+  <p class="help"><strong>Train</strong> and watch the shaded areas bend to fit the dots. <strong>Tap the map</strong> to ask the AI which group a spot belongs to, or switch to <strong>Add</strong> to drop your own dots, then train again.</p>
+</main>
+
+<script>
+// ---- 100-parameter MLP, same as tiny_ai.py ----
+const SIZES = [2, 13, 4, 1];
+let net, opt;
+function gauss(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function makeNet(){
+  const W=[], b=[];
+  for (let L=0; L<SIZES.length-1; L++){
+    const nin=SIZES[L], nout=SIZES[L+1], s=1/Math.sqrt(nin);
+    W.push(Array.from({length:nout},()=>Array.from({length:nin},()=>gauss()*s)));
+    b.push(new Array(nout).fill(0));
+  }
+  return {W,b};
+}
+const nParams = n => n.W.reduce((s,W)=>s+W.length*W[0].length,0) + n.b.reduce((s,x)=>s+x.length,0);
+function forward(x){
+  const acts=[x]; let a=x; const last=net.W.length-1;
+  for (let L=0; L<=last; L++){
+    const W=net.W[L], b=net.b[L], z=new Array(W.length);
+    for (let i=0;i<W.length;i++){ let s=b[i]; for(let j=0;j<a.length;j++) s+=W[i][j]*a[j]; z[i]=s; }
+    a = L===last ? z.map(v=>1/(1+Math.exp(-v))) : z.map(Math.tanh);
+    acts.push(a);
+  }
+  return acts;
+}
+const predict = x => forward(x).at(-1)[0];
+function backward(acts, y, gW, gb, scale){
+  let delta=[acts.at(-1)[0]-y];
+  for (let L=net.W.length-1; L>=0; L--){
+    const ap=acts[L];
+    for (let i=0;i<delta.length;i++){ gb[L][i]+=delta[i]*scale; for(let j=0;j<ap.length;j++) gW[L][i][j]+=delta[i]*ap[j]*scale; }
+    if (L>0){
+      const W=net.W[L], nd=new Array(ap.length);
+      for (let j=0;j<ap.length;j++){ let s=0; for(let k=0;k<delta.length;k++) s+=W[k][j]*delta[k]; nd[j]=s*(1-ap[j]*ap[j]); }
+      delta=nd;
+    }
+  }
+}
+function makeAdam(lr=0.02){ return {lr,t:0,m:net.W.map(W=>W.map(r=>r.map(()=>0))),v:net.W.map(W=>W.map(r=>r.map(()=>0))),mb:net.b.map(b=>b.map(()=>0)),vb:net.b.map(b=>b.map(()=>0))}; }
+function adamStep(gW, gb){
+  opt.t++; const b1=.9,b2=.999,e=1e-8,c1=1-b1**opt.t,c2=1-b2**opt.t;
+  const upd=(P,G,M,V,i)=>{ M[i]=b1*M[i]+(1-b1)*G[i]; V[i]=b2*V[i]+(1-b2)*G[i]*G[i]; P[i]-=opt.lr*(M[i]/c1)/(Math.sqrt(V[i]/c2)+e); };
+  for (let L=0;L<net.W.length;L++){
+    for (let i=0;i<net.W[L].length;i++) for (let j=0;j<net.W[L][i].length;j++) upd(net.W[L][i],gW[L][i],opt.m[L][i],opt.v[L][i],j);
+    for (let i=0;i<net.b[L].length;i++) upd(net.b[L],gb[L],opt.mb[L],opt.vb[L],i);
+  }
+}
+
+// ---- data: two half-moons ----
+let data=[];
+function makeMoons(n=240, noise=.12){
+  data=[];
+  for (let i=0;i<n;i++){
+    const t=Math.PI*Math.random(); let x,y,l;
+    if (i%2===0){ x=Math.cos(t); y=Math.sin(t); l=0; } else { x=1-Math.cos(t); y=.5-Math.sin(t); l=1; }
+    data.push({x:[x-.5+gauss()*noise, y-.25+gauss()*noise], y:l});
+  }
+}
+
+// ---- training loop ----
+let epoch=0, running=false;
+function trainEpoch(){
+  const d=[...data].sort(()=>Math.random()-.5), B=16;
+  for (let s=0;s<d.length;s+=B){
+    const chunk=d.slice(s,s+B);
+    const gW=net.W.map(W=>W.map(r=>r.map(()=>0))), gb=net.b.map(b=>b.map(()=>0));
+    for (const p of chunk) backward(forward(p.x), p.y, gW, gb, 1/chunk.length);
+    adamStep(gW, gb);
+  }
+  epoch++;
+}
+function evaluate(){
+  let loss=0, acc=0;
+  for (const p of data){ const q=Math.min(Math.max(predict(p.x),1e-9),1-1e-9); loss-=p.y*Math.log(q)+(1-p.y)*Math.log(1-q); acc+=(q>.5)===(p.y===1); }
+  return {loss:loss/data.length, acc:acc/data.length};
+}
+
+// ---- drawing ----
+const cv=document.getElementById('map'), ctx=cv.getContext('2d');
+const X0=-2, X1=2, Y0=-1.6, Y1=1.6;   // world window
+const toPx=(x,y)=>[(x-X0)/(X1-X0)*cv.width, (Y1-y)/(Y1-Y0)*cv.height];
+const toWorld=(px,py)=>[X0+px/cv.width*(X1-X0), Y1-py/cv.height*(Y1-Y0)];
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function hexRgb(h){ h=h.replace('#',''); return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); }
+let probe=null;
+function draw(){
+  const A=hexRgb(css('--a')), Bc=hexRgb(css('--b')), S=hexRgb(css('--surface'));
+  const R=60, cell=cv.width/R, img=ctx.createImageData(cv.width,cv.height);
+  const grid=[];
+  for (let gy=0;gy<R;gy++) for (let gx=0;gx<R;gx++) grid.push(predict(toWorld((gx+.5)*cell,(gy+.5)*cell)));
+  for (let py=0;py<cv.height;py++){
+    const gy=Math.min(R-1,(py/cell)|0);
+    for (let px=0;px<cv.width;px++){
+      const p=grid[gy*R+Math.min(R-1,(px/cell)|0)], c=p>.5?Bc:A, k=.12+Math.abs(p-.5)*.5, o=(py*cv.width+px)*4;
+      for (let ch=0;ch<3;ch++) img.data[o+ch]=S[ch]*(1-k)+c[ch]*k;
+      img.data[o+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  for (const p of data){
+    const [x,y]=toPx(...p.x);
+    ctx.beginPath(); ctx.arc(x,y,6,0,7); ctx.fillStyle=p.y?css('--b'):css('--a'); ctx.fill();
+    ctx.lineWidth=1.5; ctx.strokeStyle=css('--surface'); ctx.stroke();
+  }
+  if (probe){
+    const [x,y]=toPx(...probe);
+    ctx.beginPath(); ctx.arc(x,y,13,0,7); ctx.lineWidth=3; ctx.strokeStyle=css('--fg'); ctx.stroke();
+  }
+}
+function updateStats(){
+  const {loss,acc}=evaluate();
+  document.getElementById('ep').textContent=epoch;
+  document.getElementById('loss').textContent=loss.toFixed(3);
+  document.getElementById('acc').textContent=(acc*100).toFixed(1)+'%';
+}
+function refresh(){ draw(); updateStats(); if (probe) showProbe(); }
+
+function loop(){
+  if (!running) return;
+  for (let i=0;i<3;i++) trainEpoch();
+  refresh();
+  if (epoch>=600) return stop();
+  requestAnimationFrame(loop);
+}
+const trainBtn=document.getElementById('train');
+function stop(){ running=false; trainBtn.textContent='Train'; }
+trainBtn.onclick=()=>{ if (running) return stop(); running=true; trainBtn.textContent='Pause'; loop(); };
+document.getElementById('reset').onclick=()=>{ stop(); net=makeNet(); opt=makeAdam(); epoch=0; refresh(); };
+document.getElementById('data').onclick=()=>{ stop(); makeMoons(); net=makeNet(); opt=makeAdam(); epoch=0; probe=null; document.getElementById('readout').hidden=true; refresh(); };
+
+// ---- tap interaction ----
+let mode='test';
+for (const [id,m] of [['m-test','test'],['m-a','a'],['m-b','b']])
+  document.getElementById(id).onclick=()=>{ mode=m; document.querySelectorAll('.modes button').forEach(b=>b.setAttribute('aria-pressed', b.id===id)); };
+function showProbe(){
+  const p=predict(probe), ro=document.getElementById('readout');
+  const cls=p>.5?'orange':'teal', conf=(p>.5?p:1-p)*100;
+  ro.textContent=`AI says: ${cls} · ${conf.toFixed(0)}% sure`; ro.hidden=false;
+}
+cv.addEventListener('pointerdown', e=>{
+  const r=cv.getBoundingClientRect();
+  const w=toWorld((e.clientX-r.left)/r.width*cv.width, (e.clientY-r.top)/r.height*cv.height);
+  if (mode==='test'){ probe=w; showProbe(); draw(); }
+  else { data.push({x:w, y:mode==='b'?1:0}); refresh(); }
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+// ---- start: a network already partly trained, so the first view shows it working ----
+makeMoons(); net=makeNet(); opt=makeAdam();
+console.assert(nParams(net)===100, 'param count', nParams(net));
+for (let i=0;i<40;i++) trainEpoch();
+refresh();
+</script>
