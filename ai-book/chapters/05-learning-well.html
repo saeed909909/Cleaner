@@ -1,0 +1,62 @@
+<!-- part: 1 | num: 5 | title: Learning well, not just learning | lede: A network that gets every training example right can still be useless. This chapter is about the difference between memorising and understanding, and the tricks used to get the second. -->
+
+<h2>The goal is new examples</h2>
+<p>Nobody needs a network that can sort the emails it was trained on; we already know their labels. What we want is a network that sorts <em>tomorrow's</em> emails correctly. Doing well on examples the network has never seen is called <dfn>generalisation</dfn>, and it is the real goal of all machine learning.</p>
+
+<h2>Underfitting and overfitting</h2>
+<p>There are two ways to fail.</p>
+<ul>
+<li><dfn>Underfitting</dfn>: the network is too simple, or hasn't trained long enough, to capture the pattern. It does badly on training data and on new data. Tiny AI with one neuron trying to separate the crescents is underfitting: a straight line can't follow a curve.</li>
+<li><dfn>Overfitting</dfn>: the network is so flexible, or trained so long, that it learns the training examples themselves, including their random noise and quirks, instead of the pattern underneath. It looks brilliant on training data and does badly on anything new.</li>
+</ul>
+{{fig:fit3|The same dots fitted three ways. Left: too simple (underfitting). Middle: follows the real pattern. Right: bends around every single dot, including the noisy ones (overfitting). The right-hand line scores best on these dots and worst on new ones.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Two students prepare for a maths exam using past papers. One memorises the answers. The other learns the methods. On the past papers, both score 100%. On the real exam, with new questions, only one of them passes. An overfitted network is the student who memorised the answers.</p></div>
+
+<h2>Train, validation, test</h2>
+<p>To catch overfitting, you hide some data from the network. The data is split three ways:</p>
+<ul>
+<li>The <dfn data-idx="training set">training set</dfn>: what the network learns from.</li>
+<li>The <dfn data-idx="validation set">validation set</dfn>: checked regularly during training, never learned from. Used to choose hyperparameters and decide when to stop.</li>
+<li>The <dfn data-idx="test set">test set</dfn>: locked away and used once at the very end, for an honest final score.</li>
+</ul>
+{{fig:overfit_curve|Training loss keeps falling, but validation loss starts rising once the network begins memorising. The best moment to stop is at the bottom of the validation curve.}}
+<p>If information from the test set sneaks into training, for example because the same email appears in both, the final score is falsely good. This is called <dfn data-idx="data leakage">leakage</dfn> or <dfn>contamination</dfn>, and it is a real problem for language-model benchmarks, because the internet text they train on often contains the test questions (Chapter 17).</p>
+<div class="box yours"><div class="label">In your projects</div>
+<p>Tiny AI's “Real acc.” number was a test set: fresh points, checked against the true pattern, never trained on. That is why it told the truth when the model learned from itself and collapsed, even though the model's own training data looked fine.</p></div>
+
+<h2>Regularisation: making memorising harder</h2>
+<p>Techniques that discourage overfitting are called <dfn>regularisation</dfn>. The common ones:</p>
+<ul>
+<li><dfn>Early stopping</dfn>: stop training when the validation loss stops improving.</li>
+<li><dfn>Weight decay</dfn>: gently shrink all weights towards zero at every step, so the network only keeps large weights that really earn their place. Simpler explanations are preferred.</li>
+<li><dfn>Dropout</dfn>: during training, randomly switch off a fraction of the neurons (say 10%) at each step. The network can't rely on any single neuron, so knowledge gets spread out and becomes more robust. At inference time, every neuron is switched back on.</li>
+<li><dfn>Data augmentation</dfn>: make more training data by changing the examples slightly: flip and crop photos, add noise to audio. A cat is still a cat when the picture is mirrored.</li>
+</ul>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Dropout is like a football team that trains with random players missing each day. Nobody can rely on the star striker always being there, so everyone learns to cover every position. On match day, with the full team, they are stronger and more flexible.</p></div>
+
+<h2>The best regulariser: more good data</h2>
+<p>The most reliable cure for overfitting is more data. With a million examples, it is much harder to memorise them all than it is to learn the real pattern. This is a big reason why modern models train on such vast datasets.</p>
+<p>Quality matters as much as quantity. The old saying <dfn data-idx="garbage in, garbage out">“garbage in, garbage out”</dfn> applies strongly. If labels are wrong, the network learns the mistakes. If the data over-represents some groups and under-represents others, the network inherits that imbalance; this is one source of <em>bias</em>, covered in Chapter 18. Much of the real work in AI companies is collecting, cleaning, filtering and labelling data.</p>
+
+<h2>Keeping deep networks trainable</h2>
+<p>Two more problems appear as networks get deeper, and their fixes are in every modern model, so the names are worth knowing.</p>
+<h3>Vanishing and exploding gradients</h3>
+<p>During backprop, blame is multiplied at every layer on its way back. Multiply many numbers smaller than 1 and you get almost nothing; multiply many numbers bigger than 1 and you get a huge number. So in very deep networks, the first layers might receive almost no learning signal (<dfn data-idx="vanishing gradients">vanishing gradients</dfn>) or wildly large ones (<dfn data-idx="exploding gradients">exploding gradients</dfn>).</p>
+<h3>Residual connections</h3>
+<p>The main fix, from 2015, is the <dfn data-idx="residual connection">residual connection</dfn> (or skip connection). Instead of each layer replacing its input, it <em>adds</em> its output to its input. The original signal always has a clear path straight through the network, like an express lane, and each layer only needs to learn a small correction. This made networks with over a hundred layers trainable.</p>
+<h3>Normalisation</h3>
+<p><dfn>Normalisation</dfn> layers rescale the numbers flowing through the network so they stay in a sensible range, neither tiny nor huge. <em>Batch normalisation</em> is common in image networks; <dfn data-idx="layer normalisation">layer normalisation</dfn> (LayerNorm, or its simpler cousin RMSNorm) is used in language models. Tiny Writer has three LayerNorms.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>Learning is easy; learning the right thing is hard. Hold some data back to check honestly, stop memorising with regularisation, feed in more and better data, and use residual connections and normalisation to keep deep networks trainable.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Generalisation</dt><dd>Doing well on new, unseen examples.</dd>
+<dt>Underfitting</dt><dd>Too simple to learn the pattern.</dd>
+<dt>Overfitting</dt><dd>Memorising the training data instead of the pattern.</dd>
+<dt>Train / validation / test</dt><dd>Data to learn from / to tune with / for the final honest score.</dd>
+<dt>Regularisation</dt><dd>Tricks that discourage memorising: dropout, weight decay, early stopping.</dd>
+<dt>Residual connection</dt><dd>Adding a layer's input to its output: an express lane for signals.</dd>
+<dt>Normalisation</dt><dd>Keeping the numbers inside a network in a sensible range.</dd>
+</dl></div>

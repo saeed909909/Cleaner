@@ -1,0 +1,67 @@
+<!-- part: 4 | num: 16 | title: The software stack | lede: Between your idea and the graphics card sit several layers of software. Knowing their names lets you read any tutorial, model page or setup guide without getting lost. -->
+
+<h2>The layers</h2>
+<p>Like the network inside a model, AI software is built in layers. Each one hides the complexity of the layer below.</p>
+{{fig:stack|The AI software stack, from the hardware up to the apps people use. Each layer builds on the ones below it.}}
+
+<h3>Drivers and CUDA</h3>
+<p>At the bottom, the GPU <dfn data-idx="driver">driver</dfn> lets the operating system talk to the graphics card. On top of it, NVIDIA's <dfn data-idx="CUDA">CUDA</dfn> platform lets programs run general calculations on the GPU, not just graphics. Libraries such as cuBLAS (fast matrix maths) and cuDNN (fast neural-network operations) sit on CUDA. AMD's equivalent is <dfn>ROCm</dfn>; Apple's is <dfn>Metal</dfn>. A small piece of code that runs on the GPU is called a <dfn data-idx="kernel (GPU)">kernel</dfn> (a different meaning from the CNN kernel in Chapter 6). Most people never write kernels; they use frameworks that already contain thousands.</p>
+
+<h3>Frameworks</h3>
+<p>A <dfn data-idx="deep-learning framework">deep-learning framework</dfn> gives you tensors, layers, automatic differentiation (backprop for free), optimisers, and GPU support, all from a friendly programming language.</p>
+<ul>
+<li><dfn>PyTorch</dfn> (from Meta, now run by the Linux Foundation) is by far the most popular, in research and industry alike. It is used from <dfn>Python</dfn>, the main programming language of AI.</li>
+<li><dfn>JAX</dfn> (from Google) is popular for very large-scale training, especially on TPUs.</li>
+<li><dfn>TensorFlow</dfn> (from Google) was dominant in the late 2010s. Its browser version, TensorFlow.js, is what runs Tiny Writer.</li>
+</ul>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>CUDA is the engine and gearbox. PyTorch is the car's dashboard and pedals: you press “accelerate” and don't need to know how fuel injection works. Hugging Face, next, is a dealership full of ready-built cars you can drive away.</p></div>
+
+<h3>Model libraries and the hub</h3>
+<p><dfn>Hugging Face</dfn> is the main public home for models and datasets, often described as the GitHub of AI. Its <em>Transformers</em> library can download and run thousands of models in a few lines of Python. Each model page has a <dfn>model card</dfn>: a description of what the model is, how it was trained, what it's for, its limitations, and its licence.</p>
+
+<h3>Inference engines and apps</h3>
+<p>Running a model efficiently, especially quantized and on modest hardware, is its own speciality:</p>
+<ul>
+<li><dfn>llama.cpp</dfn>: a fast C++ engine that runs GGUF models on CPUs, GPUs and Macs. Many home tools are built on it.</li>
+<li><dfn>Ollama</dfn>: a simple app and command-line tool for downloading and running models locally (“ollama run” and a model name).</li>
+<li><dfn>LM Studio</dfn>: a desktop app with a chat window and a model browser, also built for running models locally.</li>
+<li><dfn>vLLM</dfn> and similar servers: engines for serving models to many users at once in data centres, with tricks like batching many conversations together.</li>
+<li><dfn>ONNX</dfn>: a neutral model format and runtime, used to move models between frameworks and devices.</li>
+</ul>
+
+<h2>What is actually in a model download?</h2>
+<p>When you download a model, you typically get:</p>
+<ul>
+<li>A <strong>configuration file</strong>: the architecture. Number of layers, embedding size, attention heads, vocabulary size, experts, and so on.</li>
+<li>The <strong>tokenizer</strong> files: the vocabulary and merge rules.</li>
+<li>The <strong>weights</strong>: one or more large files holding every parameter.</li>
+</ul>
+<p>The weights come in a few formats. <dfn data-idx="safetensors">Safetensors</dfn> is the modern standard: just numbers, safe to load. Older PyTorch files (<code>.pt</code>, <code>.bin</code>) use a Python format called <em>pickle</em>, which can contain hidden code that runs when the file is opened, so only load those from sources you trust. <strong>GGUF</strong> bundles config, tokenizer and quantized weights into a single file for llama.cpp-based tools.</p>
+{{fig:model_files|What a model download contains. The config describes the shape, the tokenizer handles text, and the weights hold everything the model learned.}}
+
+<h2>Open, closed and in between</h2>
+<p>You'll hear models described by how available they are:</p>
+<ul>
+<li><dfn data-idx="closed model">Closed</dfn> (or proprietary) models, like the ones behind ChatGPT and Claude, can only be used through the company's apps or its API. The weights are never released.</li>
+<li><dfn data-idx="open-weight model">Open-weight</dfn> models, like Llama, Mistral, Qwen or DeepSeek, publish their weights for download, under a licence that may include conditions.</li>
+<li><dfn data-idx="open-source model">Open-source</dfn> models, in the strict sense, also publish the training code and, ideally, the training data, so anyone could reproduce them. Fewer models meet that bar, and people argue about the term.</li>
+</ul>
+
+<h2>Using models over the internet: APIs</h2>
+<p>An <dfn data-idx="API">API</dfn> (application programming interface) lets a program send a prompt to a company's model over the internet and receive the reply. You authenticate with an <dfn>API key</dfn> (a secret password for your account, never to be shared) and are billed per token, usually with separate prices for input tokens and output tokens. Most AI apps you use are, behind the scenes, sending API requests.</p>
+
+<h2>Where people write the code</h2>
+<p>Most AI experimentation happens in <dfn data-idx="Jupyter notebook">Jupyter notebooks</dfn>: documents mixing runnable Python code, results and charts. <dfn data-idx="Google Colab">Google Colab</dfn> offers notebooks in the browser with free access to a GPU for limited time, which is a good way to try things without any setup. For a long training run, like the 124M model, a plain Python script started from the command line and left running is more reliable.</p>
+<div class="box yours"><div class="label">In your projects</div>
+<p>The planned PC project uses most of this stack: NVIDIA driver and CUDA at the bottom, PyTorch for the model and training, a Hugging Face tokenizer and dataset, safetensors for checkpoints, and, at the end, conversion to GGUF so the model can be loaded in LM Studio or Ollama.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>CUDA, ROCm, Metal</dt><dd>GPU computing platforms for NVIDIA, AMD and Apple.</dd>
+<dt>PyTorch, JAX, TensorFlow</dt><dd>Deep-learning frameworks.</dd>
+<dt>Hugging Face</dt><dd>The main public hub for models and datasets.</dd>
+<dt>llama.cpp, Ollama, LM Studio</dt><dd>Tools for running models on your own computer.</dd>
+<dt>Safetensors, GGUF</dt><dd>Common weight-file formats.</dd>
+<dt>Open-weight / closed</dt><dd>Weights downloadable / only usable through the company's service.</dd>
+<dt>API, API key</dt><dd>Using a model over the internet; the secret that identifies you.</dd>
+</dl></div>

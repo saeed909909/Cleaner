@@ -1,0 +1,61 @@
+<!-- part: 3 | num: 10 | title: How a language model is trained | lede: A chatbot is made in stages. First it reads a large part of the internet and learns to continue text. Then it is taught to be an assistant. This chapter follows that journey. -->
+
+<h2>The pipeline at a glance</h2>
+{{fig:pipeline|The usual stages of making a chat model. Pretraining is by far the most expensive; the later stages are smaller but change the model's behaviour a great deal.}}
+
+<h2>Stage 1: pretraining</h2>
+<p><dfn>Pretraining</dfn> is the self-supervised game from Chapter 7: read text and predict the next token, over and over, for trillions of tokens. Every time the model guesses wrong, backpropagation nudges its billions of weights a little. This objective is called <dfn>next-token prediction</dfn>, and it is exactly what Tiny Writer does, with letters instead of tokens.</p>
+<p>It sounds too simple to produce intelligence. But think about what it takes to predict the next word well across all kinds of text. To continue a physics textbook, you need physics. To continue a mystery novel, you need to track characters and motives. To continue code, you need to understand programming. Prediction forces the model to build internal models of all those things, because they make the prediction better.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Someone who has read a vast library and plays a game: you read them the start of any page, and they must guess the next word. To get very good at this game across every book, they can't just memorise. They have to actually learn history, grammar, chemistry, how people talk, how arguments flow.</p></div>
+
+<h3>The data</h3>
+<p>Pretraining data is a huge mixture: web pages (often from a public archive called <dfn>Common Crawl</dfn>), books, encyclopaedias, scientific papers, code, forums and more. Raw web data is mostly junk, so much of the work is filtering: removing spam, duplicates, adult content, personal data and low-quality pages. Data quality has turned out to matter as much as model size. Current large models are pretrained on around 10 to 30 trillion tokens.</p>
+
+<h3>The result: a base model</h3>
+<p>What comes out of pretraining is a <dfn>base model</dfn> (or pretrained model). It knows a great deal, but it is not an assistant. Ask a base model “What is the capital of France?” and it might reply with “What is the capital of Germany? What is the capital of Spain?”, because a list of quiz questions is a perfectly likely continuation. It continues documents; it doesn't follow instructions.</p>
+
+<h2>How big, and for how long? Scaling laws</h2>
+<p>In 2020, researchers found that a model's loss improves in a smooth, predictable way as you increase three things together: the number of parameters, the amount of training data, and the compute spent. These patterns are called <dfn data-idx="scaling laws">scaling laws</dfn>. They made AI training something you could plan: spend ten times more, and you can predict roughly how much better the model will be.</p>
+{{fig:scaling|A scaling law, schematically. On a logarithmic scale, each ten-fold increase in compute lowers the loss by a similar step. Progress continues, but each improvement costs ten times more than the last.}}
+<p>A 2022 study known as <dfn>Chinchilla</dfn> refined this: for the best result from a fixed budget, you should train on about <strong>20 tokens for every parameter</strong>. Earlier models had been too big for the data they saw. Many recent small models deliberately train on far more than 20 tokens per parameter, because a small model that is cheap to run is worth the extra training.</p>
+<div class="box know"><div class="label">Good to know</div>
+<p>Training compute is measured in <dfn data-idx="FLOP">FLOPs</dfn> (floating-point operations: one multiply or one add). A handy rule: training costs about 6 × parameters × tokens FLOPs. GPT-3 (175 billion parameters, 300 billion tokens) works out to about 3 × 10<sup>23</sup> FLOPs. A home graphics card might manage around 10<sup>13</sup> per second, which would take roughly a thousand years.</p></div>
+<p>As models scaled, they sometimes gained abilities quite suddenly, such as doing multi-step arithmetic or following instructions given only a few examples. These were called <dfn>emergent abilities</dfn>. Researchers still debate how sudden they really are, but they are part of why scaling became the dominant strategy.</p>
+
+<h2>Stage 2: supervised fine-tuning</h2>
+<p>To turn the base model into an assistant, it is fine-tuned on examples of good conversations: a user's request, followed by an excellent response, often written or checked by people. Tens of thousands of such examples are enough to change its behaviour dramatically. This is called <dfn data-idx="supervised fine-tuning (SFT)">supervised fine-tuning</dfn> (SFT) or <dfn>instruction tuning</dfn>.</p>
+<p>The model still only predicts the next token; it has just learned that, in this format, the likely next text after a question is a helpful answer. The format uses the special tokens from Chapter 8 to mark who is speaking, which is called a <dfn>chat template</dfn>.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A brilliant graduate who has read everything, starting their first job at a help desk. They don't need to learn more facts. They need to learn the job: listen to the question, answer it clearly, be polite, and say so when they don't know.</p></div>
+
+<h2>Stage 3: learning from preferences</h2>
+<p>It is much easier for a person to say which of two answers is better than to write the perfect answer themselves. <dfn data-idx="RLHF">Reinforcement learning from human feedback</dfn> (RLHF) uses this. The model writes several answers to the same prompt; people rank them; a separate network called a <dfn>reward model</dfn> is trained to predict those rankings; and then the chat model is trained with reinforcement learning to produce answers the reward model scores highly.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A comedian testing material. They can't calculate what's funny, but every night the audience reacts, and they keep the jokes that land. Over hundreds of shows their act gets much better, guided only by “this one, not that one”.</p></div>
+<p>There are now several variations. <dfn data-idx="DPO">Direct preference optimisation</dfn> (DPO) skips the separate reward model and learns from the preferences directly. <dfn data-idx="RLAIF">RLAIF</dfn> uses an AI, rather than people, to give the feedback, guided by written principles; Anthropic's <dfn>Constitutional AI</dfn> is an example. All of these together are often called <dfn data-idx="post-training">post-training</dfn>, or <dfn>alignment</dfn> training, because they align the model's behaviour with what people want.</p>
+
+<h2>Stage 4: reinforcement learning for reasoning</h2>
+<p>Since 2024, a powerful extra stage has become standard. The model is given problems with checkable answers, like maths questions or code with tests, and allowed to work through them step by step before answering. Attempts that reach the right answer are rewarded. Over many rounds, the model learns to plan, check its work and back up when it goes wrong. Models trained this way are often called <dfn data-idx="reasoning model">reasoning models</dfn>. Chapter 11 looks at what they do when you use them.</p>
+<div class="box yours"><div class="label">In your projects</div>
+<p>This stage is your Teacher mode, scaled up: the model attempts problems, an outside checker (the answer key or the test) says right or wrong, and the model learns from its mistakes. The answers come from outside, which is exactly why it doesn't collapse.</p></div>
+
+<h2>Cheap fine-tuning: LoRA</h2>
+<p>Fine-tuning every weight of a 70-billion-parameter model needs as much memory as training it. <dfn data-idx="LoRA">Low-rank adaptation</dfn> (LoRA) avoids that. It freezes the original weights and trains small add-on tables alongside some layers, which nudge the outputs. The add-ons might hold well under 1% as many numbers as the model. This family of methods is called <dfn data-idx="parameter-efficient fine-tuning (PEFT)">parameter-efficient fine-tuning</dfn> (PEFT). <em>QLoRA</em> goes further by also shrinking the frozen model to 4-bit numbers (Chapter 15), making it possible to fine-tune quite large models on a single home graphics card.</p>
+{{fig:lora|LoRA: the big original weight table stays frozen. Two thin trainable tables, multiplied together, produce a small correction that is added on top.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Instead of reprinting an entire textbook to update it, you add sticky notes to a few pages. The notes are small, cheap, and you can peel them off and swap in a different set for a different course.</p></div>
+
+<h2>Checkpoints</h2>
+<p>Training runs last weeks or months, and computers crash. So the full state of training, meaning all the weights and the optimiser's memory, is saved regularly to disk. Each save is a <dfn>checkpoint</dfn>. The final checkpoint, with only the weights kept, is what gets released as “the model”. Tiny Writer's “Continue from step…” button is resuming from a checkpoint saved in your browser.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Pretraining</dt><dd>Learning to predict the next token on a huge pile of text.</dd>
+<dt>Base model</dt><dd>The result of pretraining: knowledgeable, but not yet an assistant.</dd>
+<dt>Scaling laws</dt><dd>Predictable improvement with more parameters, data and compute.</dd>
+<dt>Chinchilla rule</dt><dd>About 20 training tokens per parameter for the best use of a budget.</dd>
+<dt>SFT</dt><dd>Fine-tuning on example conversations.</dd>
+<dt>RLHF, DPO</dt><dd>Learning from which of two answers people prefer.</dd>
+<dt>LoRA</dt><dd>Fine-tuning by training small add-ons instead of all weights.</dd>
+<dt>Checkpoint</dt><dd>A saved snapshot of a model during or after training.</dd>
+</dl></div>

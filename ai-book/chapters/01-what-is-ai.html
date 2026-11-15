@@ -1,0 +1,63 @@
+<!-- part: 1 | num: 1 | title: What AI actually is | lede: Before neurons and chips, a map of the territory: what the words AI, machine learning and deep learning really mean, and why “learning” changed everything. -->
+
+<h2>A word with many meanings</h2>
+<p><dfn>Artificial intelligence</dfn> (AI) is any computer system that does something we would call intelligent if a person did it: recognising a face, translating a sentence, playing chess, answering a question. That is a very broad definition, and it is meant to be. A chess program from 1997, the spam filter in your email, and a modern chatbot are all AI.</p>
+<p>What has changed over the decades is <em>how</em> we build these systems. There are two basic approaches.</p>
+
+<h3>Approach 1: write the rules by hand</h3>
+<p>Early AI, sometimes called <dfn>symbolic AI</dfn> or “good old-fashioned AI”, worked by having experts write rules. A medical system might contain thousands of rules like “if the patient has a fever and a stiff neck, consider meningitis”. These <dfn data-idx="expert system">expert systems</dfn> worked well in narrow areas, but they were brittle. The real world has too many exceptions to write down, and nobody can write rules for things we do without thinking, like recognising a friend's voice.</p>
+
+<h3>Approach 2: let the computer learn from examples</h3>
+<p><dfn>Machine learning</dfn> (ML) flips the approach around. Instead of writing the rules, you give the computer many examples, and it works out the rules by itself. Show it ten thousand emails labelled “spam” or “not spam”, and it learns which patterns matter. Nobody tells it that “FREE!!!” is suspicious; it discovers that from the data.</p>
+
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Writing rules is like teaching someone to cook by handing them a recipe book. Machine learning is like letting them cook hundreds of meals, tasting each one, and adjusting a little every time. The recipe-follower is stuck when an ingredient is missing. The taster has developed a feel for cooking, even if they could never write down everything they know.</p></div>
+
+<p>That last point matters. A machine-learning system often cannot explain its own rules in words. It has learned them as millions of numbers, not as sentences. This is both its strength and, as we will see in Chapter 18, one of its biggest problems.</p>
+
+<h2>The nesting dolls: AI, ML, deep learning, LLMs</h2>
+<p>You will hear four terms used almost interchangeably. They are actually nested inside each other, like Russian dolls.</p>
+{{fig:nested_ai|The four terms are nested. Every large language model is deep learning, all deep learning is machine learning, and all machine learning is AI. The reverse is not true.}}
+<ul>
+<li><strong>AI</strong> is the whole field: anything that behaves intelligently.</li>
+<li><strong>Machine learning</strong> is the part of AI where the system learns from data.</li>
+<li><dfn>Deep learning</dfn> is machine learning using <em>neural networks</em> with many layers (the “deep” means many layers, not deep thoughts). Almost all impressive AI since about 2012 is deep learning.</li>
+<li><dfn data-idx="large language model (LLM)">Large language models</dfn> (LLMs), such as the models behind ChatGPT, Claude or Gemini, are deep-learning systems trained on enormous amounts of text.</li>
+</ul>
+
+<h2>What “a model” means</h2>
+<p>You will see the word <dfn>model</dfn> everywhere. In AI, a model is the thing that has been trained: a structure (the shape of the network) plus a big collection of learned numbers. When people say “download the model”, they mean downloading those numbers. When they say “run the model”, they mean feeding something in and getting an answer out.</p>
+<p>Those learned numbers are called <dfn data-idx="parameter">parameters</dfn> (or <dfn data-idx="weight">weights</dfn>; the two words are used almost interchangeably). The number of parameters is the usual way of describing a model's size. Your first project, Tiny AI, had exactly 100 parameters. GPT-1 had 117 million. Today's largest models have hundreds of billions or more.</p>
+
+<div class="box plain"><div class="label">In plain words</div>
+<p>A model is a recipe with blanks in it, plus the numbers that fill the blanks. Training is how the numbers are found. Using the model afterwards is called <dfn>inference</dfn>.</p></div>
+
+<h2>Training versus inference</h2>
+<p>Every AI model lives two very different lives.</p>
+<p><dfn>Training</dfn> is the learning phase. The model sees examples, makes guesses, measures how wrong it was, and adjusts its parameters. This is slow and expensive. Training a frontier language model takes thousands of specialised chips running for months.</p>
+<p><strong>Inference</strong> is the using phase. The parameters are frozen and the model simply answers. Each answer is cheap compared with training, but a popular model answers millions of questions a day, so inference adds up too.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Training is going to medical school for years. Inference is the doctor seeing a patient: quick, using what was learned, and not changing what they know with each appointment. A chatbot does not learn from your conversation in the way a person would; its parameters stay the same. What it “remembers” within one chat is just the text it can see, which we will meet as the <em>context window</em> in Chapter 8.</p></div>
+
+<h2>Narrow, general, and the words in between</h2>
+<p>Most AI ever built is <dfn data-idx="narrow AI">narrow</dfn>: it does one job. A chess engine cannot recognise cats. Large language models are surprising because they are much more general: the same model can write a poem, explain physics, and fix a bug, because all of those can be expressed as text.</p>
+<p><dfn data-idx="artificial general intelligence (AGI)">Artificial general intelligence</dfn> (AGI) is the idea of an AI that can do any intellectual task a person can, at least as well. There is no agreed definition and no agreed test, so be careful with headlines about it. You will also hear <dfn>generative AI</dfn>, which simply means AI that creates new content (text, images, music, video) rather than only sorting or predicting.</p>
+
+<h2>Why now?</h2>
+<p>Neural networks were invented in the 1950s. Why did they only take off around 2012? Three ingredients arrived at the same time:</p>
+<ol>
+<li><strong>Data.</strong> The internet produced billions of images and documents to learn from.</li>
+<li><strong>Compute.</strong> Graphics cards, built for video games, turned out to be excellent at the maths neural networks need (Chapter 14).</li>
+<li><strong>Better methods.</strong> Small but important improvements in how networks are built and trained, ending with the <em>transformer</em> in 2017 (Chapter 9).</li>
+</ol>
+<p>Every chapter in this book is really about one of those three ingredients.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>AI</dt><dd>Any computer system doing something we would call intelligent.</dd>
+<dt>Machine learning</dt><dd>AI that learns its rules from examples instead of being told them.</dd>
+<dt>Deep learning</dt><dd>Machine learning with many-layered neural networks.</dd>
+<dt>LLM</dt><dd>A large language model: deep learning trained on huge amounts of text.</dd>
+<dt>Model</dt><dd>A network's structure plus its learned numbers.</dd>
+<dt>Parameters / weights</dt><dd>The learned numbers inside a model.</dd>
+<dt>Training / inference</dt><dd>Learning the numbers / using them to answer.</dd>
+</dl></div>

@@ -1,0 +1,57 @@
+<!-- part: 3 | num: 13 | title: Beyond text: images, sound, tools and memory | lede: A language model on its own can only read and write text from what it learned in training. Modern AI systems add eyes, ears, a voice, a library card and a toolbox. -->
+
+<h2>Multimodal models</h2>
+<p>A <dfn data-idx="modality">modality</dfn> is a kind of data: text, images, audio, video. A <dfn data-idx="multimodal model">multimodal</dfn> model handles more than one. The trick that makes this work is simple to state: turn everything into tokens. Once an image or a sound clip is chopped into pieces and each piece turned into an embedding, the transformer can process it alongside text with exactly the machinery from Chapter 9.</p>
+
+<h2>How models see: images as tokens</h2>
+<p>The <dfn data-idx="vision transformer (ViT)">vision transformer</dfn> (ViT, 2020) cuts an image into a grid of small squares called <dfn data-idx="patch (image)">patches</dfn>, say 16 × 16 pixels each. Each patch is flattened into a list of numbers and turned into an embedding, just like a word token. A 224 × 224 photo becomes 196 “visual tokens”, and the transformer reads them like a sentence.</p>
+{{fig:patches|A vision transformer cuts an image into patches. Each patch becomes one token, so the image can be read by a transformer just like text.}}
+<p>To connect pictures with words, a model called <dfn>CLIP</dfn> (2021) was trained on hundreds of millions of images paired with their captions from the web. It learned to place an image and its matching caption at nearby points in a shared embedding space. That shared space is what lets you search photos with a sentence, and what lets chat models describe what is in a picture. A chat model that accepts images is usually called a <dfn data-idx="vision-language model (VLM)">vision-language model</dfn> (VLM).</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Cutting a photo into jigsaw pieces and describing each piece in the same “language” the model uses for words. The model then reads the pieces like a paragraph, and attention lets each piece check the others to work out what the whole picture shows.</p></div>
+
+<h2>How models draw</h2>
+<p>Most image generators are diffusion models (Chapter 6) guided by text. Your prompt is turned into embeddings by a text encoder, and at every denoising step the diffusion network looks at those embeddings, through attention, to decide which way to clean up the noise. The text steers the sculpting.</p>
+<p>Working on full-size images directly is slow, so most systems use <dfn>latent diffusion</dfn>: an autoencoder squeezes images into a much smaller latent form, the diffusion happens in that compact space, and the decoder expands the result back to full size at the end. Video generators extend this to stacks of frames that must stay consistent over time. Some newer systems generate images with transformers directly, token by token, like text.</p>
+
+<h2>How models hear and speak</h2>
+<p><dfn data-idx="speech-to-text">Speech recognition</dfn> (speech-to-text) turns audio into text. The sound is usually converted into a picture of its frequencies over time, called a <em>spectrogram</em>, which is then chopped into tokens and read by a transformer. OpenAI's open <dfn>Whisper</dfn> model (2022) made accurate, free speech recognition widely available. <dfn data-idx="text-to-speech">Text-to-speech</dfn> runs the other way. Voice assistants now increasingly use models that take audio tokens in and produce audio tokens out directly, so they can respond quickly and keep tone of voice.</p>
+
+<h2>Giving models a library: retrieval</h2>
+<p>A model only knows what was in its training data, and that data stops at a <dfn>knowledge cutoff</dfn> date. It also doesn't know your company's documents or your personal notes. <dfn data-idx="retrieval-augmented generation (RAG)">Retrieval-augmented generation</dfn> (RAG) fixes this by looking things up first.</p>
+<ol>
+<li>Ahead of time, documents are split into chunks, and each chunk is turned into an embedding (Chapter 8) and stored in a <dfn>vector database</dfn>.</li>
+<li>When a question arrives, it is also turned into an embedding, and the database finds the chunks with the closest meaning. This is <dfn>semantic search</dfn>: it matches meaning, not exact words.</li>
+<li>Those chunks are pasted into the model's context window along with the question, and the model answers using them.</li>
+</ol>
+{{fig:rag|Retrieval-augmented generation. The question is used to find relevant passages, which are added to the prompt so the model can answer from them.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>An open-book exam. Instead of relying only on what they memorised, the student looks up the relevant pages, then writes the answer with the book open. They still need to understand the subject to find the right pages and use them well.</p></div>
+<p>RAG reduces hallucination, keeps answers current, and lets a model cite its sources. Web search in chat products is a form of retrieval.</p>
+
+<h2>Giving models tools</h2>
+<p>A model can be told, in its system prompt, about <dfn data-idx="tool use (function calling)">tools</dfn> it may use: a calculator, a web search, a calendar, a code runner. When it decides a tool would help, it writes a specially formatted request instead of a normal reply; the software around it runs the tool and pastes the result back into the context; and the model continues. This is called <dfn data-idx="tool use (function calling)">tool use</dfn> or function calling.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A clever person with a phone in their pocket. They don't need to do long division in their head or remember today's weather; they know when to pull out the calculator or check the forecast. The skill is knowing which tool to use, and when.</p></div>
+<p>To avoid every app inventing its own way of connecting tools, standards have appeared. The <dfn data-idx="Model Context Protocol (MCP)">Model Context Protocol</dfn> (MCP), introduced by Anthropic in 2024 and since adopted widely, is a common plug for connecting models to tools and data sources: build a connector once and any compatible AI app can use it, a bit like USB for AI tools.</p>
+
+<h2>Agents</h2>
+<p>An <dfn data-idx="agent (AI)">AI agent</dfn> is a model running in a loop with tools, working towards a goal over many steps: plan, act, look at the result, decide what to do next, repeat. A coding agent might read files, edit code, run the tests, read the errors, and fix them, dozens of times, before reporting back. A browsing agent might click through websites to book a table. When an agent operates a computer's screen, mouse and keyboard directly, it is called <dfn>computer use</dfn>.</p>
+{{fig:agent_loop|The agent loop. The model chooses an action, a tool carries it out, the result comes back as new context, and the model decides again, until the goal is reached.}}
+<p>Agents are powerful but bring new risks: they take real actions, mistakes can compound over many steps, and text they read along the way (a web page, an email) might contain instructions designed to trick them. That last risk, <em>prompt injection</em>, is covered in Chapter 18.</p>
+
+<h2>Memory</h2>
+<p>Models don't remember past conversations: each chat starts with an empty context window. Products that seem to remember you use the techniques above: saving notes about you somewhere and pasting the relevant ones into the context next time, or retrieving from past chats with RAG. The model's weights are not changing. This kind of memory is a feature of the software around the model, not of the model itself.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>Turn images, audio and video into tokens and a transformer can handle them all. Retrieval gives a model up-to-date facts to read; tools let it act and calculate; agents put it in a loop to finish multi-step jobs. The model in the middle is still a next-token predictor.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Multimodal</dt><dd>Handling several kinds of data, such as text and images.</dd>
+<dt>Vision transformer</dt><dd>Reads an image as a sequence of patch tokens.</dd>
+<dt>CLIP</dt><dd>Links images and captions in one shared embedding space.</dd>
+<dt>Latent diffusion</dt><dd>Diffusion carried out in a compressed space, for speed.</dd>
+<dt>RAG</dt><dd>Looking up relevant text and adding it to the prompt.</dd>
+<dt>Vector database</dt><dd>Stores embeddings for fast search by meaning.</dd>
+<dt>Tool use, MCP</dt><dd>Letting a model call outside tools; a standard plug for them.</dd>
+<dt>Agent</dt><dd>A model working in a loop with tools towards a goal.</dd>
+</dl></div>

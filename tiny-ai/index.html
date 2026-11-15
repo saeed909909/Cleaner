@@ -1,0 +1,413 @@
+<title>Tiny AI 100</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow column; the live decision map is the centrepiece, the growing network sits under it, controls under the thumb. */
+:root {
+  --bg: #eef2f3; --surface: #ffffff; --fg: #15232a; --muted: #5a6b72; --line: #d3dde0;
+  --a: #0f8b8d; --b: #d9822b; --new: #7a4fd6;
+  --accent: #15232a; --on-accent: #ffffff;
+  --display: "Space Grotesk", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e171b; --surface: #16232a; --fg: #e4eef0; --muted: #8fa3aa; --line: #263840;
+  --a: #34c3c5; --b: #f2a356; --new: #b59af5;
+  --accent: #e4eef0; --on-accent: #0e171b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e171b; --surface: #16232a; --fg: #e4eef0; --muted: #8fa3aa; --line: #263840;
+  --a: #34c3c5; --b: #f2a356; --new: #b59af5;
+  --accent: #e4eef0; --on-accent: #0e171b; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 520px; margin: 0 auto; padding-block: 20px 32px; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-family: var(--display); font-size: 1.7rem; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: .92rem; }
+.arch { font-family: var(--mono); font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.arch span { border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; }
+.arch b { color: var(--fg); }
+
+.stage { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+canvas { display: block; width: 100%; max-width: 100%; }
+#map { aspect-ratio: 1; touch-action: none; cursor: crosshair; }
+#netview { aspect-ratio: 600 / 220; }
+.readout { position: absolute; left: 10px; top: 10px; font-family: var(--mono); font-size: .78rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+.cap { position: absolute; left: 10px; top: 8px; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; min-width: 0; }
+.stat .k { font-size: .64rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.stat .v { font-family: var(--mono); font-size: .98rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: 600 .95rem var(--body); border-radius: 10px; padding: 12px 14px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); cursor: pointer; flex: 1 1 0; min-height: 46px; }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); flex: 2 1 0; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--a); outline-offset: 2px; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.modes button { border: 0; padding: 9px 6px; font-size: .82rem; min-height: 40px; background: transparent; }
+.modes button[aria-pressed="true"] { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+
+.toggle { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 12px; cursor: pointer; }
+.toggle input { width: 22px; height: 22px; accent-color: var(--new); flex: none; margin: 0; }
+.toggle .t { font-weight: 600; }
+.toggle .d { font-size: .82rem; color: var(--muted); }
+.log { font-family: var(--mono); font-size: .76rem; color: var(--new); margin: 0; min-height: 1.2em; }
+.help { font-size: .86rem; color: var(--muted); margin: 0; }
+.help strong { color: var(--fg); font-weight: 600; }
+.slider { display: grid; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.slider label { display: flex; justify-content: space-between; font-weight: 600; }
+.slider b { font-family: var(--mono); color: var(--new); }
+.slider input { width: 100%; accent-color: var(--new); }
+.slider .d { font-size: .82rem; color: var(--muted); }
+.label { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px 2px; }
+#lmhelp { margin-top: 6px; }
+</style>
+
+<main>
+  <header>
+    <h1>Tiny AI</h1>
+    <p class="sub">A neural network that grows its own neurons and can learn from a teacher, or from itself.</p>
+    <div class="arch" id="arch"></div>
+  </header>
+
+  <div class="stage">
+    <canvas id="map" width="600" height="600" aria-label="Decision map. Tap to test or add points."></canvas>
+    <div class="readout" id="readout" hidden></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="netview" width="600" height="220" aria-label="Diagram of the network's neurons and connections."></canvas>
+    <div class="cap">The network · new neurons glow purple</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Epoch</div><div class="v" id="ep">0</div></div>
+    <div class="stat"><div class="k">Real acc.</div><div class="v" id="real">–</div></div>
+    <div class="stat"><div class="k">Neurons</div><div class="v" id="neu">–</div></div>
+    <div class="stat"><div class="k">Mistakes</div><div class="v" id="mis">–</div></div>
+  </div>
+  <p class="log" id="log" aria-live="polite"></p>
+
+  <div class="row">
+    <button class="primary" id="train">Train</button>
+    <button id="reset">New network</button>
+    <button id="data">New dots</button>
+  </div>
+
+  <div>
+    <div class="label">How it learns</div>
+    <div class="modes" id="lmodes" role="group" aria-label="How it learns">
+      <button data-lm="normal" aria-pressed="true">Just train</button>
+      <button data-lm="teacher" aria-pressed="false">Teacher</button>
+      <button data-lm="self" aria-pressed="false">Learn from itself</button>
+    </div>
+    <p class="help" id="lmhelp"></p>
+  </div>
+
+  <label class="toggle" for="drift">
+    <input type="checkbox" id="drift">
+    <span><span class="t">Slowly rotate the world</span><br>
+    <span class="d">The true pattern keeps turning, so the AI never finishes learning. Old dots go out of date.</span></span>
+  </label>
+
+  <label class="toggle" for="grow">
+    <input type="checkbox" id="grow" checked>
+    <span><span class="t">Grow new neurons while learning</span><br>
+    <span class="d">Starts with 2 neurons and adds one whenever learning stalls, up to the limit below. Turn off to use the fixed 100-parameter network.</span></span>
+  </label>
+
+  <div class="slider">
+    <label for="maxn"><span class="t">Neuron limit</span> <b id="maxnv">24</b></label>
+    <input type="range" id="maxn" min="4" max="200" step="4" value="24">
+    <span class="d">More neurons means slower training, especially on a phone. Above about 100 it gets sluggish.</span>
+  </div>
+
+  <div class="modes" id="shapes" role="group" aria-label="Dot pattern">
+    <button data-shape="moons" aria-pressed="true">Crescents</button>
+    <button data-shape="rings" aria-pressed="false">Rings</button>
+    <button data-shape="spiral" aria-pressed="false">Spiral (hard)</button>
+  </div>
+
+  <div class="modes" role="group" aria-label="What a tap does">
+    <button id="m-test" aria-pressed="true">Tap: test</button>
+    <button id="m-a" aria-pressed="false"><span class="dot" style="background:var(--a)"></span>Add teal</button>
+    <button id="m-b" aria-pressed="false"><span class="dot" style="background:var(--b)"></span>Add orange</button>
+  </div>
+
+  <p class="help"><strong>Real acc.</strong> is tested on fresh points against the true pattern. <strong>Mistakes</strong> is how many of 60 quiz points it got wrong in the last round. <strong>Train</strong> and watch the shaded areas bend to fit the dots. With growing on, the network starts too small to solve the problem and adds neurons as it goes. <strong>Tap the map</strong> to ask the AI which group a spot belongs to, or switch to <strong>Add</strong> to drop your own dots, then train again.</p>
+</main>
+
+<script>
+// ---- neural network (tanh hidden layers, sigmoid output) ----
+const FIXED = [2, 13, 4, 1];      // exactly 100 parameters
+const START = [2, 1, 1, 1];       // growing mode starts here: 2 neurons, can only draw a straight line
+let maxNeurons = 24; const PATIENCE = 30;
+let net, opt, growing = true;
+function gauss(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function makeNet(sizes){
+  const W=[], b=[];
+  for (let L=0; L<sizes.length-1; L++){
+    const nin=sizes[L], nout=sizes[L+1], s=1/Math.sqrt(nin);
+    W.push(Array.from({length:nout},()=>Array.from({length:nin},()=>gauss()*s)));
+    b.push(new Array(nout).fill(0));
+  }
+  return {W,b,born:{}};
+}
+const sizes = () => [net.W[0][0].length, ...net.W.map(W=>W.length)];
+const nParams = () => net.W.reduce((s,W)=>s+W.length*W[0].length,0) + net.b.reduce((s,x)=>s+x.length,0);
+const nNeurons = () => sizes().slice(1,-1).reduce((a,b)=>a+b,0);
+
+function forward(x){
+  const acts=[x]; let a=x; const last=net.W.length-1;
+  for (let L=0; L<=last; L++){
+    const W=net.W[L], b=net.b[L], z=new Array(W.length);
+    for (let i=0;i<W.length;i++){ let s=b[i]; for(let j=0;j<a.length;j++) s+=W[i][j]*a[j]; z[i]=s; }
+    a = L===last ? z.map(v=>1/(1+Math.exp(-v))) : z.map(Math.tanh);
+    acts.push(a);
+  }
+  return acts;
+}
+const predict = x => forward(x).at(-1)[0];
+function backward(acts, y, gW, gb, scale){
+  let delta=[acts.at(-1)[0]-y];
+  for (let L=net.W.length-1; L>=0; L--){
+    const ap=acts[L];
+    for (let i=0;i<delta.length;i++){ gb[L][i]+=delta[i]*scale; for(let j=0;j<ap.length;j++) gW[L][i][j]+=delta[i]*ap[j]*scale; }
+    if (L>0){
+      const W=net.W[L], nd=new Array(ap.length);
+      for (let j=0;j<ap.length;j++){ let s=0; for(let k=0;k<delta.length;k++) s+=W[k][j]*delta[k]; nd[j]=s*(1-ap[j]*ap[j]); }
+      delta=nd;
+    }
+  }
+}
+const zerosLike = () => ({W: net.W.map(W=>W.map(r=>r.map(()=>0))), b: net.b.map(b=>b.map(()=>0))});
+function makeAdam(lr=0.02){ const m=zerosLike(), v=zerosLike(); return {lr,t:0,m,v}; }
+function adamStep(g){
+  opt.t++; const b1=.9,b2=.999,e=1e-8,c1=1-b1**opt.t,c2=1-b2**opt.t;
+  const upd=(P,G,M,V,i)=>{ M[i]=b1*M[i]+(1-b1)*G[i]; V[i]=b2*V[i]+(1-b2)*G[i]*G[i]; P[i]-=opt.lr*(M[i]/c1)/(Math.sqrt(V[i]/c2)+e); };
+  for (let L=0;L<net.W.length;L++){
+    for (let i=0;i<net.W[L].length;i++) for (let j=0;j<net.W[L][i].length;j++) upd(net.W[L][i],g.W[L][i],opt.m.W[L][i],opt.v.W[L][i],j);
+    for (let i=0;i<net.b[L].length;i++) upd(net.b[L],g.b[L],opt.m.b[L],opt.v.b[L],i);
+  }
+}
+
+// ---- growth: add one neuron to hidden layer h (1 or 2) without disturbing what was learned ----
+function growNeuron(h){
+  const inW = net.W[h-1], outW = net.W[h], nin = inW[0].length;
+  inW.push(Array.from({length:nin},()=>gauss()/Math.sqrt(nin)));   // fresh incoming weights
+  net.b[h-1].push(0);
+  for (const row of outW) row.push(gauss()*0.01);                   // near-zero outgoing: output barely changes
+  for (const S of [opt.m, opt.v]){
+    S.W[h-1].push(new Array(nin).fill(0)); S.b[h-1].push(0);
+    for (const row of S.W[h]) row.push(0);
+  }
+  net.born[`${h}:${inW.length-1}`] = epoch;
+}
+function maybeGrow(loss, acc){
+  if (!growing) return;
+  if (loss < best*0.97){ best = loss; stall = 0; return; }
+  if (++stall < PATIENCE || acc >= 0.99 || nNeurons() >= maxNeurons) return;
+  const [ , h1, h2] = sizes();
+  const h = h1 <= 2*h2 ? 1 : 2;              // keep the first layer about twice as wide as the second
+  growNeuron(h);
+  stall = 0; best = loss;
+  document.getElementById('log').textContent =
+    `Epoch ${epoch}: learning stalled, grew a neuron in layer ${h} → ${nNeurons()} neurons, ${nParams()} parameters`;
+}
+
+// ---- data: two half-moons ----
+let data=[], testSet=[], shape='moons', rot=0, drift=false, learnMode='normal', lastMis='–';
+const DATA_MAX=320, QUIZ=60, ROUND=10, SPIN=0.004;
+const rotate=([x,y],a)=>[x*Math.cos(a)-y*Math.sin(a), x*Math.sin(a)+y*Math.cos(a)];
+function makeData(n=240){
+  data=[]; for (let i=0;i<n;i++){ const l=i%2; data.push({x:rotate(samplePoint(l),rot), y:l, truth:l, born:-1e9}); }
+  testSet=Array.from({length:400},(_,i)=>({x:samplePoint(i%2), y:i%2}));
+}
+function samplePoint(l){
+  {
+    let x,y;
+    if (shape==='moons'){
+      const t=Math.PI*Math.random();
+      if (!l){ x=Math.cos(t); y=Math.sin(t); } else { x=1-Math.cos(t); y=.5-Math.sin(t); }
+      x=x-.5+gauss()*.12; y=y-.25+gauss()*.12;
+    } else if (shape==='rings'){
+      const t=2*Math.PI*Math.random(), r=(l?1.25:.5)+gauss()*.1;
+      x=r*Math.cos(t); y=r*Math.sin(t);
+    } else {
+      const t=Math.sqrt(Math.random())*3*Math.PI, r=t/(3*Math.PI)*1.45, a=t+(l?Math.PI:0);
+      x=r*Math.cos(a)+gauss()*.05; y=r*Math.sin(a)+gauss()*.05;
+    }
+    return [x,y];
+  }
+}
+function realAcc(){ let c=0; for (const t of testSet) c += (predict(rotate(t.x,rot))>.5)===(t.y===1); return c/testSet.length; }
+
+// ---- teacher / self-teaching rounds ----
+function quizRound(){
+  let wrong=0; const add=[];
+  for (let i=0;i<QUIZ;i++){
+    const l=Math.random()<.5?1:0, x=rotate(samplePoint(l),rot), guess=predict(x)>.5?1:0;
+    if (guess!==l) wrong++;
+    if (learnMode==='teacher'){
+      // keep every mistake with the correct answer, plus a few correct ones to refresh old knowledge
+      if (guess!==l || Math.random()<.15) add.push({x, y:l, truth:l, born:epoch});
+    } else if (i<30){
+      // learning from itself: it labels new points with its own guess, right or wrong
+      add.push({x, y:guess, truth:l, born:epoch});
+    }
+  }
+  data.push(...add);
+  while (data.length>DATA_MAX) data.shift();   // limited memory: the oldest dots are forgotten
+  lastMis=`${wrong}/${QUIZ}`;
+  const bad=add.filter(d=>d.y!==d.truth).length;
+  document.getElementById('log').textContent = learnMode==='teacher'
+    ? `Epoch ${epoch}: quiz found ${wrong} mistakes, teacher added ${add.length} dots`
+    : `Epoch ${epoch}: added ${add.length} self-labelled dots, ${bad} of them wrong`;
+}
+
+// ---- training loop ----
+let epoch=0, running=false, best=Infinity, stall=0;
+function evaluate(){
+  let loss=0, acc=0;
+  for (const p of data){ const q=Math.min(Math.max(predict(p.x),1e-9),1-1e-9); loss-=p.y*Math.log(q)+(1-p.y)*Math.log(1-q); acc+=(q>.5)===(p.y===1); }
+  return {loss:loss/data.length, acc:acc/data.length};
+}
+function trainEpoch(){
+  const d=[...data].sort(()=>Math.random()-.5), B=16;
+  for (let s=0;s<d.length;s+=B){
+    const chunk=d.slice(s,s+B), g=zerosLike();
+    for (const p of chunk) backward(forward(p.x), p.y, g.W, g.b, 1/chunk.length);
+    adamStep(g);
+  }
+  epoch++;
+  if (drift) rot += SPIN;
+  if (learnMode!=='normal' && epoch%ROUND===0) quizRound();
+  const {loss, acc} = evaluate();
+  maybeGrow(loss, acc);
+}
+
+// ---- drawing ----
+const cv=document.getElementById('map'), ctx=cv.getContext('2d');
+const nv=document.getElementById('netview'), nctx=nv.getContext('2d');
+const X0=-2, X1=2, Y0=-1.6, Y1=1.6;
+const toPx=(x,y)=>[(x-X0)/(X1-X0)*cv.width, (Y1-y)/(Y1-Y0)*cv.height];
+const toWorld=(px,py)=>[X0+px/cv.width*(X1-X0), Y1-py/cv.height*(Y1-Y0)];
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function hexRgb(h){ h=h.replace('#',''); return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); }
+let probe=null;
+function drawMap(){
+  const A=hexRgb(css('--a')), Bc=hexRgb(css('--b')), S=hexRgb(css('--surface'));
+  const R=nParams()>3000?36:60, cell=cv.width/R, img=ctx.createImageData(cv.width,cv.height), grid=[];
+  for (let gy=0;gy<R;gy++) for (let gx=0;gx<R;gx++) grid.push(predict(toWorld((gx+.5)*cell,(gy+.5)*cell)));
+  for (let py=0;py<cv.height;py++){
+    const gy=Math.min(R-1,(py/cell)|0);
+    for (let px=0;px<cv.width;px++){
+      const p=grid[gy*R+Math.min(R-1,(px/cell)|0)], c=p>.5?Bc:A, k=.12+Math.abs(p-.5)*.5, o=(py*cv.width+px)*4;
+      for (let ch=0;ch<3;ch++) img.data[o+ch]=S[ch]*(1-k)+c[ch]*k;
+      img.data[o+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  for (const p of data){
+    const [x,y]=toPx(...p.x);
+    ctx.beginPath(); ctx.arc(x,y,6,0,7); ctx.fillStyle=p.y?css('--b'):css('--a'); ctx.fill();
+    const fresh = epoch-p.born < 12;
+    ctx.lineWidth=fresh?3:1.5; ctx.strokeStyle=fresh?css('--new'):css('--surface'); ctx.stroke();
+    if (p.y!==p.truth){ ctx.beginPath(); ctx.moveTo(x-4,y-4); ctx.lineTo(x+4,y+4); ctx.moveTo(x+4,y-4); ctx.lineTo(x-4,y+4); ctx.lineWidth=2; ctx.strokeStyle=css('--fg'); ctx.stroke(); }
+  }
+  if (probe){ const [x,y]=toPx(...probe); ctx.beginPath(); ctx.arc(x,y,13,0,7); ctx.lineWidth=3; ctx.strokeStyle=css('--fg'); ctx.stroke(); }
+}
+function drawNet(){
+  const W=nv.width, H=nv.height, sz=sizes(), top=56, bot=H-16;
+  nctx.fillStyle=css('--surface'); nctx.fillRect(0,0,W,H);
+  const xs=sz.map((_,L)=>60+L*(W-120)/(sz.length-1));
+  const pos=sz.map((n,L)=>Array.from({length:n},(_,i)=>[xs[L], n===1?(top+bot)/2:top+i*(bot-top)/(n-1)]));
+  const A=css('--a'), B=css('--b');
+  for (let L=0;L<net.W.length;L++) for (let i=0;i<net.W[L].length;i++) for (let j=0;j<net.W[L][i].length;j++){
+    const w=net.W[L][i][j];
+    nctx.globalAlpha=Math.min(.85, Math.abs(w)*.35+.04);
+    nctx.strokeStyle=w>0?A:B; nctx.lineWidth=Math.min(3,.6+Math.abs(w)*.6);
+    nctx.beginPath(); nctx.moveTo(...pos[L][j]); nctx.lineTo(...pos[L+1][i]); nctx.stroke();
+  }
+  nctx.globalAlpha=1;
+  const r=Math.max(4, Math.min(9, (bot-top)/Math.max(...sz)/2.4));
+  pos.forEach((col,L)=>col.forEach(([x,y],i)=>{
+    const age = epoch - (net.born[`${L}:${i}`] ?? -1e9), fresh = age < 60;
+    nctx.beginPath(); nctx.arc(x,y,fresh?r+2:r,0,7);
+    nctx.fillStyle=fresh?css('--new'):css('--fg'); nctx.fill();
+    nctx.lineWidth=2; nctx.strokeStyle=css('--surface'); nctx.stroke();
+  }));
+}
+function updateStats(){
+  document.getElementById('ep').textContent=epoch;
+  document.getElementById('real').textContent=(realAcc()*100).toFixed(1)+'%';
+  document.getElementById('mis').textContent=learnMode==='normal'?'–':lastMis;
+  document.getElementById('neu').textContent=nNeurons();
+  document.getElementById('arch').innerHTML=`<span>${sizes().join(' → ')}</span><span><b>${nParams()} params</b></span><span>${growing?'growing':'fixed size'}</span>`;
+}
+function refresh(){ drawMap(); drawNet(); updateStats(); if (probe) showProbe(); }
+
+function loop(){
+  if (!running) return;
+  const reps = nParams()>3000 ? 1 : nParams()>800 ? 2 : 3;
+  for (let i=0;i<reps;i++) trainEpoch();
+  refresh();
+  if (learnMode==='normal' && !drift && epoch >= (growing ? 1500 : 600)) return stop();
+  requestAnimationFrame(loop);
+}
+const trainBtn=document.getElementById('train');
+function stop(){ running=false; trainBtn.textContent='Train'; }
+trainBtn.onclick=()=>{ if (running) return stop(); running=true; trainBtn.textContent='Pause'; loop(); };
+function freshNet(){
+  stop(); net=makeNet(growing?START:FIXED); opt=makeAdam(); epoch=0; best=Infinity; stall=0;
+  document.getElementById('log').textContent = growing ? `Starting with ${nNeurons()} neurons. Press Train and watch it grow.` : 'Fixed network: 17 neurons, 100 parameters.';
+  refresh();
+}
+document.getElementById('reset').onclick=freshNet;
+function newDots(){ rot=0; makeData(); probe=null; document.getElementById('readout').hidden=true; freshNet(); }
+document.getElementById('data').onclick=newDots;
+for (const b of document.querySelectorAll('#shapes button')) b.onclick=()=>{
+  shape=b.dataset.shape; document.querySelectorAll('#shapes button').forEach(x=>x.setAttribute('aria-pressed', x===b)); newDots(); };
+document.getElementById('grow').onchange=e=>{ growing=e.target.checked; freshNet(); };
+
+// ---- tap interaction ----
+let mode='test';
+for (const [id,m] of [['m-test','test'],['m-a','a'],['m-b','b']])
+  document.getElementById(id).onclick=()=>{ mode=m; document.querySelectorAll('[id^="m-"]').forEach(b=>b.setAttribute('aria-pressed', b.id===id)); };
+function showProbe(){
+  const p=predict(probe), ro=document.getElementById('readout');
+  ro.textContent=`AI says: ${p>.5?'orange':'teal'} · ${((p>.5?p:1-p)*100).toFixed(0)}% sure`; ro.hidden=false;
+}
+cv.addEventListener('pointerdown', e=>{
+  const r=cv.getBoundingClientRect();
+  const w=toWorld((e.clientX-r.left)/r.width*cv.width, (e.clientY-r.top)/r.height*cv.height);
+  if (mode==='test'){ probe=w; showProbe(); drawMap(); }
+  else { const l=mode==='b'?1:0; data.push({x:w, y:l, truth:l, born:epoch}); best=Infinity; stall=0; refresh(); }
+});
+const LMHELP={
+  normal:'It trains only on the dots it already has.',
+  teacher:'Every 10 epochs a teacher quizzes it on 60 new points and adds each mistake, with the correct answer, as a new dot. Mistakes should fall toward zero.',
+  self:'Every 10 epochs it labels 30 new points with its own guesses and trains on them. Wrong labels are crossed out. Turn on rotation to watch it fall behind.'};
+function setLM(m){ learnMode=m; lastMis='–';
+  document.querySelectorAll('#lmodes button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.lm===m));
+  document.getElementById('lmhelp').textContent=LMHELP[m]; updateStats(); }
+document.querySelectorAll('#lmodes button').forEach(b=>b.onclick=()=>setLM(b.dataset.lm));
+const maxIn=document.getElementById('maxn');
+maxIn.oninput=()=>{ maxNeurons=+maxIn.value; document.getElementById('maxnv').textContent=maxNeurons; stall=0; };
+document.getElementById('drift').onchange=e=>{ drift=e.target.checked; };
+const redraw=()=>{ drawMap(); drawNet(); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+// ---- start: a small network a little way into learning ----
+makeData(); freshNet(); setLM('normal');
+for (let i=0;i<20;i++) trainEpoch();
+refresh();
+</script>

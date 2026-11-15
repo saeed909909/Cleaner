@@ -1,0 +1,59 @@
+<!-- part: 5 | num: 17 | title: Measuring and judging AI | lede: Every new model arrives with a chart of scores showing it beating the others. This chapter explains what those scores measure, what they miss, and how to read them with healthy suspicion. -->
+
+<h2>Perplexity: how surprised is the model?</h2>
+<p>The most basic measure of a language model comes straight from its training loss. <dfn>Perplexity</dfn> turns the cross-entropy loss into a more intuitive number: roughly, <em>how many options the model is torn between</em> at each step, on average.</p>
+<p class="formula">perplexity = e<sup>loss</sup>   (e ≈ 2.718)</p>
+{{fig:perplexity|Loss and perplexity are the same information on different scales. Tiny Writer starts at a loss of 4.56, which is a perplexity of 96: as unsure as picking blindly among all 96 characters.}}
+<p>Tiny Writer at a loss of 2.2 has a perplexity of about 9: as if, at each letter, it had narrowed the choice to nine equally likely options. A good letter-level model gets below 3. Perplexity is useful for comparing models with the same tokenizer on the same text, but it says nothing about whether a model is helpful, honest or good at reasoning. For that, people use benchmarks.</p>
+
+<h2>Benchmarks</h2>
+<p>A <dfn data-idx="benchmark">benchmark</dfn> is a fixed set of test questions with known answers, used to compare models. Some well-known ones, as examples of the kinds of skill tested:</p>
+<table>
+<tr><th>Benchmark</th><th>Tests</th></tr>
+<tr><td>MMLU</td><td>Multiple-choice questions across 57 school and university subjects</td></tr>
+<tr><td>GSM8K, MATH</td><td>Maths word problems, from school level to competition level</td></tr>
+<tr><td>HumanEval</td><td>Writing short programs that pass hidden tests</td></tr>
+<tr><td>SWE-bench</td><td>Fixing real bugs in real open-source software projects</td></tr>
+<tr><td>GPQA</td><td>Very hard science questions written by PhD experts</td></tr>
+<tr><td>ARC-AGI</td><td>Visual puzzles that are easy for people but hard for AI</td></tr>
+<tr><td>Humanity's Last Exam</td><td>Extremely difficult questions from experts across many fields</td></tr>
+</table>
+<p>Benchmarks have a short life. As models improve, scores approach 100% and the test can no longer tell good models from great ones. This is called <dfn data-idx="benchmark saturation">saturation</dfn>, and it is why new, harder benchmarks keep appearing. MMLU and GSM8K, which were hard in 2021, are now mostly saturated by top models.</p>
+
+<h3>Why scores can mislead</h3>
+<ul>
+<li><strong>Contamination.</strong> Benchmark questions get posted online, and online text ends up in training data. A model may have seen the answers (Chapter 5's leakage, on a global scale).</li>
+<li><strong>Teaching to the test.</strong> When a number becomes the goal, effort goes into raising the number rather than the ability behind it. This is known as <dfn data-idx="Goodhart's law">Goodhart's law</dfn>: “when a measure becomes a target, it ceases to be a good measure”.</li>
+<li><strong>Setup differences.</strong> Scores change with how questions are asked, how many examples are shown, and whether the model may think first. Companies don't always compare like with like.</li>
+<li><strong>Narrowness.</strong> A model that is top at maths may be worse at writing, or at following your particular instructions.</li>
+</ul>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>School exam grades. They tell you something real, but a student who drilled past papers can outscore one who understands more, and a top grade in maths says nothing about someone's essay writing. Grades are a starting point for judging a person, not the final word.</p></div>
+
+<h2>Asking people: arenas and preferences</h2>
+<p>Another approach skips fixed answers and asks people. In a <dfn data-idx="chatbot arena">chatbot arena</dfn>, a user types any question, two anonymous models answer, and the user votes for the better reply. Across millions of votes, each model gets a rating, using the same <dfn>Elo rating</dfn> system as chess players. This captures what people actually prefer, but people sometimes prefer answers that are longer, friendlier or more confident rather than more correct.</p>
+
+<h2>Evals: testing for a specific purpose</h2>
+<p>In the industry, any systematic test of a model is called an <dfn data-idx="eval">eval</dfn>. Besides public benchmarks, companies build private evals for their own needs: does the model follow our formatting rules, does it refuse dangerous requests, can it complete this 50-step task? Safety evals test for risky abilities, such as helping with weapons or deceiving its operators. Anyone building with AI is advised to write a few evals of their own: a set of real examples from their use, with what a good answer looks like.</p>
+
+<h2>Reading a model launch chart</h2>
+<p>When a new model announces its scores, ask:</p>
+<ol>
+<li>Which benchmarks, and are they saturated? Gains near 100% matter less.</li>
+<li>Compared with which models, and which versions? Is anything strong missing?</li>
+<li>Same conditions? Thinking time, number of attempts, tools allowed?</li>
+<li>Do independent testers and arena ratings agree?</li>
+<li>Most importantly: how does it do on <em>your</em> tasks?</li>
+</ol>
+<div class="box plain"><div class="label">In plain words</div>
+<p>Perplexity measures prediction; benchmarks measure specific skills; arenas measure what people prefer. Each is useful and each can be gamed. Trust patterns across many measures, and test on what you actually need.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Perplexity</dt><dd>e to the power of the loss: roughly, how many options the model is torn between.</dd>
+<dt>Benchmark</dt><dd>A fixed test set for comparing models.</dd>
+<dt>Saturation</dt><dd>When top models all score near the maximum.</dd>
+<dt>Contamination</dt><dd>Test questions leaking into training data.</dd>
+<dt>Goodhart's law</dt><dd>A measure that becomes a target stops measuring well.</dd>
+<dt>Arena, Elo</dt><dd>People vote between anonymous answers; models get chess-style ratings.</dd>
+<dt>Eval</dt><dd>Any systematic test of a model for a purpose.</dd>
+</dl></div>

@@ -1,0 +1,74 @@
+<!-- part: 4 | num: 15 | title: Numbers, precision and quantization | lede: Every weight is a number stored in a fixed number of bits. Choosing how many bits is one of the most practical decisions in AI: it decides whether a model fits on your card at all. -->
+
+<h2>Bits and bytes</h2>
+<p>Computers store everything as <dfn data-idx="bit">bits</dfn>, each a 0 or a 1. Eight bits make a <dfn>byte</dfn>. A number stored in 32 bits takes 4 bytes; in 16 bits, 2 bytes; in 8 bits, 1 byte; in 4 bits, half a byte. Since a model is mostly billions of weights, the number of bits per weight decides its size:</p>
+<p class="formula">model size in bytes ≈ number of parameters × bits per weight ÷ 8</p>
+<table>
+<tr><th>Model</th><th class="num">32-bit</th><th class="num">16-bit</th><th class="num">8-bit</th><th class="num">4-bit</th></tr>
+<tr><td>Tiny Writer (116K)</td><td class="num">0.5 MB</td><td class="num">0.2 MB</td><td class="num">0.1 MB</td><td class="num">0.06 MB</td></tr>
+<tr><td>GPT-2 small (124M)</td><td class="num">0.5 GB</td><td class="num">0.25 GB</td><td class="num">0.12 GB</td><td class="num">0.06 GB</td></tr>
+<tr><td>7B model</td><td class="num">28 GB</td><td class="num">14 GB</td><td class="num">7 GB</td><td class="num">3.5 GB</td></tr>
+<tr><td>70B model</td><td class="num">280 GB</td><td class="num">140 GB</td><td class="num">70 GB</td><td class="num">35 GB</td></tr>
+</table>
+<p>So the same 7B model needs 28 GB in its original 32-bit form (no chance on an 8 GB card) but only about 3.5 GB at 4 bits (fits easily). Understanding how that shrinking works is the subject of this chapter.</p>
+
+<h2>Floating-point numbers</h2>
+<p>Weights are usually stored as <dfn data-idx="floating point">floating-point</dfn> numbers, a computer version of scientific notation. A number like 0.000314 is stored as 3.14 × 10<sup>−4</sup>: a <strong>sign</strong> (plus or minus), an <dfn>exponent</dfn> (how big or small: the power of ten, or in computers, of two), and a <dfn data-idx="mantissa">mantissa</dfn> (the significant digits: 3.14). More exponent bits give a wider <em>range</em> of sizes; more mantissa bits give finer <em>precision</em>.</p>
+{{fig:bits|How the bits are shared out in common number formats. FP32 has plenty of both range and precision. FP16 keeps precision but loses range. BF16 keeps FP32's range but loses precision. Integer formats have no exponent at all.}}
+<ul>
+<li><dfn data-idx="FP32">FP32</dfn> (“single precision”): 32 bits. The traditional default. Very accurate, but big and slow.</li>
+<li><dfn data-idx="FP16">FP16</dfn> (“half precision”): 16 bits. Half the size, much faster on tensor cores. Its weakness is range: very small numbers, like tiny gradients, can round to zero.</li>
+<li><dfn data-idx="BF16">BF16</dfn> (“brain float”, invented at Google Brain): also 16 bits, but with the same exponent range as FP32 and less precision. Neural networks cope well with imprecision but badly with numbers falling out of range, so BF16 became the standard for training. Your RTX 2060 Super's tensor cores do not support it, so on that card you would train in FP16.</li>
+<li><dfn data-idx="FP8">FP8</dfn> and even FP4: used on the newest data-centre GPUs for very fast training and inference.</li>
+<li><dfn data-idx="INT8 / INT4">INT8</dfn> and INT4: whole numbers from −128 to 127, or −8 to 7, with no exponent, combined with a scale factor. Used for compressed models.</li>
+</ul>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Writing down distances. FP32 is writing “1,234.5678 km”. BF16 is “about 1,200 km”: rough, but you can still write anything from the width of an atom to the distance to the Sun. FP16 is careful to the metre, but can't write anything bigger than a few dozen kilometres. For a neural network, being roughly right about everything beats being exactly right about a narrow range.</p></div>
+<p>Modern training uses <dfn>mixed precision</dfn>: the heavy matrix maths runs in 16 bits (or 8) for speed, while a master copy of the weights and some sensitive sums are kept in 32 bits so that tiny updates aren't lost.</p>
+
+<h2>Quantization: shrinking a trained model</h2>
+<p><dfn data-idx="quantization">Quantization</dfn> converts a trained model's weights to fewer bits, for example from 16-bit to 4-bit. Each weight is rounded to the nearest of a small set of allowed values, and a scale factor is stored alongside each small group of weights so the values can be stretched back to roughly the right size.</p>
+{{fig:quant|Quantization. Each original weight (dots) is rounded to the nearest of a few allowed levels (lines). With 4 bits there are only 16 levels, so some precision is lost, but each weight takes a quarter of the space of a 16-bit one.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Saving a photo with fewer colours. A photo with millions of colours, reduced to 256, looks almost identical. Reduced to 16 colours, you start to see banding in the sky, but the picture is still clearly recognisable, and the file is far smaller. Reduce to 2 colours and it falls apart.</p></div>
+<h3>How much quality is lost?</h3>
+<ul>
+<li><strong>8-bit</strong>: usually almost indistinguishable from the original.</li>
+<li><strong>4- to 6-bit</strong>: a small, often hard-to-notice loss for most uses. This is the popular sweet spot for running models at home.</li>
+<li><strong>2- to 3-bit</strong>: noticeable damage, especially for smaller models; large models tolerate it better.</li>
+</ul>
+<p>A useful rule: a bigger model at 4 bits usually beats a smaller model at 16 bits that takes the same memory.</p>
+<p>Quantization is mainly for <em>running</em> models. Clever methods, with names like <dfn>GPTQ</dfn> and <dfn>AWQ</dfn>, use a little sample text (calibration data) to choose the rounding so the important weights lose the least. In the popular <dfn>GGUF</dfn> file format used by llama.cpp, Ollama and LM Studio, you'll see quantization levels with names like <code>Q8_0</code>, <code>Q5_K_M</code> or <code>Q4_K_M</code>: the number is roughly the bits per weight, and the letters describe the method and mix.</p>
+
+<h2>Will it fit? The memory budget</h2>
+<p>Running a model needs memory for more than just the weights:</p>
+<ol>
+<li><strong>The weights</strong>: parameters × bytes per weight.</li>
+<li><strong>The KV cache</strong> (Chapter 11): grows with the context length. For a 7B-class model, a few thousand tokens of context might take a few hundred megabytes; a hundred thousand tokens can take many gigabytes.</li>
+<li><strong>Working space and overhead</strong>: the software itself, temporary results, and on Windows, your screen. Budget about 1 GB.</li>
+</ol>
+{{fig:vram_budget|What fits in 8 GB of VRAM (approximately). Each bar shows the weights plus a modest KV cache and overhead; the dashed line is your card's limit.}}
+<div class="box yours"><div class="label">In your projects</div>
+<p>On your 8 GB card: a 7–8B model at 4-bit runs comfortably with a few thousand tokens of context. A 12–14B model at 4-bit is right at the limit, and usually needs a few layers kept in system RAM, which slows it down. At 16-bit, about 3B is the largest that fits. And for the training project, a 124M model is tiny by comparison: about 0.25 GB of weights, leaving plenty of room.</p></div>
+
+<h2>Training needs much more</h2>
+<p>Training is far hungrier than running. For each parameter, mixed-precision training with Adam typically stores the 16-bit weight, a 32-bit master copy, a 16-bit gradient, and Adam's two 32-bit memory values: around <strong>16 bytes per parameter</strong>, before counting the <dfn data-idx="activations (memory)">activations</dfn> (the intermediate results from the forward pass, kept for backprop).</p>
+<table>
+<tr><th>Model</th><th class="num">Running, 4-bit</th><th class="num">Running, 16-bit</th><th class="num">Training (≈16 bytes/param)</th></tr>
+<tr><td>124M</td><td class="num">0.06 GB</td><td class="num">0.25 GB</td><td class="num">2 GB + activations</td></tr>
+<tr><td>1B</td><td class="num">0.5 GB</td><td class="num">2 GB</td><td class="num">16 GB + activations</td></tr>
+<tr><td>7B</td><td class="num">3.5 GB</td><td class="num">14 GB</td><td class="num">112 GB + activations</td></tr>
+</table>
+<p>That's why your card can run a 7B model but could only train something around a few hundred million parameters from scratch. Tricks such as <dfn data-idx="gradient checkpointing">gradient checkpointing</dfn> (recomputing activations instead of storing them), 8-bit optimisers, and LoRA (Chapter 10) stretch these limits.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>Fewer bits per weight means a smaller, faster model with a little less accuracy. 16-bit is standard; 4-bit is the home-use sweet spot. To check whether a model fits, multiply its parameters by the bytes per weight and add a gigabyte or two for context and overhead.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Bit, byte</dt><dd>A single 0 or 1; eight bits.</dd>
+<dt>Floating point</dt><dd>Computer scientific notation: sign, exponent, mantissa.</dd>
+<dt>FP32, FP16, BF16</dt><dd>32-bit; 16-bit with less range; 16-bit with less precision.</dd>
+<dt>Mixed precision</dt><dd>Doing the heavy maths in fewer bits while keeping a precise master copy.</dd>
+<dt>Quantization</dt><dd>Rounding weights to fewer bits to shrink a model.</dd>
+<dt>GGUF, Q4_K_M</dt><dd>A common model file format, and one of its 4-bit levels.</dd>
+<dt>Activations</dt><dd>Intermediate results kept during training for backprop.</dd>
+</dl></div>

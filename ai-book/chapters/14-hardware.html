@@ -1,0 +1,81 @@
+<!-- part: 4 | num: 14 | title: The hardware | lede: Neural networks are mostly multiplying big tables of numbers. This chapter is about the machines built to do that astonishingly fast, from the graphics card in a gaming PC to buildings full of them. -->
+
+<h2>What AI needs from a computer</h2>
+<p>Chapter 3 ended with a key fact: running a neural network is mostly <em>matrix multiplication</em>, the same simple multiply-and-add repeated billions of times. Each of those calculations is independent of the others, so they can all be done at the same time. AI hardware is designed around two needs:</p>
+<ol>
+<li><strong>Lots of simple arithmetic in parallel.</strong></li>
+<li><strong>Moving huge amounts of data</strong> (the weights) to where the arithmetic happens, fast enough to keep it busy.</li>
+</ol>
+<p>Keep both in mind; the second one matters more than most people expect.</p>
+
+<h2>CPU versus GPU</h2>
+<p>The <dfn data-idx="CPU">CPU</dfn> (central processing unit) is a computer's general-purpose brain. It has a small number of very powerful <dfn data-idx="core (processor)">cores</dfn>, typically 4 to 32 in a desktop, each able to handle complicated, branching tasks very quickly: running your operating system, a browser, a game's logic.</p>
+<p>A <dfn data-idx="GPU">GPU</dfn> (graphics processing unit) was built to draw video games, which means calculating the colour of millions of pixels, each in the same simple way, sixty times a second. So it has <em>thousands</em> of small, simple cores that all do the same kind of operation at once. That turns out to be exactly what neural networks need.</p>
+{{fig:cpu_gpu|A CPU has a few large, clever cores. A GPU has thousands of small, simple ones. For one complicated task the CPU wins; for millions of identical small sums, the GPU wins by a huge margin.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A CPU is a handful of brilliant professors. Give them a tricky, many-step problem and they'll solve it quickly. A GPU is a stadium full of thousands of school students who each know only basic arithmetic. Hand them ten thousand separate additions and the stadium finishes long before the professors do.</p></div>
+<p>NVIDIA's GPU cores are called <dfn data-idx="CUDA">CUDA cores</dfn>, after its programming platform. Since 2017, NVIDIA GPUs also contain <dfn data-idx="tensor core">tensor cores</dfn>: specialised circuits that multiply small blocks of a matrix in one go, far faster than ordinary cores, especially with lower-precision numbers (Chapter 15). Most of a modern GPU's AI speed comes from its tensor cores.</p>
+
+<h2>Anatomy of a graphics card</h2>
+{{fig:gpu_card|An NVIDIA RTX 2060 Super-style graphics card with its cooler removed, simplified. The GPU chip does the computing; the memory chips around it hold the model; the power circuitry feeds it; the slot connects it to the rest of the computer.}}
+<ul>
+<li>The <strong>GPU chip</strong> (the die) holds the cores, the tensor cores and a small amount of very fast on-chip memory called <dfn data-idx="cache">cache</dfn>.</li>
+<li><dfn data-idx="VRAM">VRAM</dfn> (video memory) is the set of memory chips around the GPU. The model's weights must live here to run fast. Your card has 8 GB of a type called GDDR6. Data-centre GPUs use <dfn data-idx="HBM">HBM</dfn> (high-bandwidth memory), stacked right beside the chip.</li>
+<li>The <strong>power delivery</strong> (VRM) converts power from the supply; the <strong>power connector</strong> brings in extra power beyond what the slot provides.</li>
+<li>The <dfn data-idx="PCIe">PCIe</dfn> slot connects the card to the motherboard. Data moving between the computer's main memory and the card crosses here, and it is much slower than VRAM.</li>
+</ul>
+
+<h2>Memory: the real bottleneck</h2>
+<p>To produce each token, a language model must read <em>every active weight</em> from memory once. A 7-billion-parameter model stored at 2 bytes per weight is 14 GB of data, read for every single token. The arithmetic itself is quick; waiting for the data is what takes time. That is why, for running models, the most important number is often not computing speed but <dfn>memory bandwidth</dfn>: how many gigabytes per second the memory can deliver.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A kitchen. The cooks (cores) are lightning fast, but every ingredient (weight) must come from the pantry (memory) through one doorway. However many cooks you hire, dinner can't come out faster than ingredients get through the door. Bandwidth is the width of the doorway. Memory capacity is the size of the pantry: whether the ingredients fit at all.</p></div>
+<p class="formula">rough max tokens per second ≈ memory bandwidth ÷ size of active weights</p>
+<p>Your RTX 2060 Super has 448 GB/s of bandwidth. A 7B model shrunk to 4 bits per weight is about 4 GB, so the ceiling is around 448 ÷ 4 ≈ 110 tokens per second; real software reaches perhaps half of that. This is also why MoE models (Chapter 12) are fast: only the active experts' weights are read for each token.</p>
+<p>When a model doesn't fit in VRAM, parts of it can be kept in the computer's ordinary memory (<dfn data-idx="system RAM">system RAM</dfn>) and moved across PCIe, or run on the CPU. It works, but it is many times slower, because those doorways are far narrower.</p>
+{{fig:memory_pyramid|The memory hierarchy. Near the top, memory is tiny but extremely fast; lower down it is huge but slow. Running a model well means keeping the weights as high up as they fit.}}
+
+<h2>Other AI chips</h2>
+<ul>
+<li><dfn data-idx="TPU">TPUs</dfn> (tensor processing units) are Google's own AI chips, built only for matrix maths and used in Google's data centres.</li>
+<li><dfn data-idx="NPU">NPUs</dfn> (neural processing units) are small AI engines built into phones and laptops, designed to run modest models using very little battery.</li>
+<li><strong>Apple silicon</strong> uses <dfn>unified memory</dfn>: the CPU and GPU share one large pool. A Mac with 64 GB can hold far bigger models than a graphics card with 8 GB, though with less bandwidth than a high-end GPU.</li>
+<li>Other companies build AI accelerators too, including AMD's Instinct GPUs and various specialised start-up designs. Most AI software is written first for NVIDIA's CUDA, which has given NVIDIA a strong lead.</li>
+</ul>
+
+<h2>Your card next to a data-centre card</h2>
+<table>
+<tr><th></th><th class="num">RTX 2060 Super (2019)</th><th class="num">H100 SXM (2022)</th></tr>
+<tr><td>Memory</td><td class="num">8 GB GDDR6</td><td class="num">80 GB HBM3</td></tr>
+<tr><td>Memory bandwidth</td><td class="num">448 GB/s</td><td class="num">~3,350 GB/s</td></tr>
+<tr><td>Tensor-core speed, half precision</td><td class="num">~57 trillion/s (FP16)</td><td class="num">~990 trillion/s (BF16)</td></tr>
+<tr><td>Power</td><td class="num">175 W</td><td class="num">up to 700 W</td></tr>
+<tr><td>Supports BF16 numbers</td><td class="num">No</td><td class="num">Yes</td></tr>
+</table>
+<p>Figures are the manufacturers' approximate peak numbers; real workloads reach less. Newer generations exist and are faster still, but the ratio tells the story: a single data-centre GPU has about 10 times the memory, 7 times the bandwidth and 17 times the tensor speed of a good gaming card from a few years earlier, and frontier models train on tens of thousands of them.</p>
+
+<h2>From one GPU to a supercomputer</h2>
+<p>A large model is far too big for one GPU, and training would take centuries on one anyway. So the work is spread across many. A typical AI server holds 8 GPUs connected by a very fast link (NVIDIA's <dfn data-idx="NVLink">NVLink</dfn>); racks of servers are connected by high-speed networks such as <dfn>InfiniBand</dfn>; and a training <dfn data-idx="cluster (computing)">cluster</dfn> can contain tens of thousands of GPUs and draw as much power as a small town.</p>
+{{fig:datacenter|From chip to cluster. GPUs are grouped in servers, servers in racks, and racks into clusters, all wired together with fast networking so they can act as one machine.}}
+
+<h3>Splitting the work: parallelism</h3>
+<p>There are several ways to divide a model across many GPUs, and big training runs combine them all:</p>
+<ul>
+<li><dfn>Data parallelism</dfn>: every GPU holds a full copy of the model and trains on a different slice of the data; afterwards they average their gradients.</li>
+<li><dfn>Tensor parallelism</dfn>: each layer's big weight tables are cut into pieces, with each GPU multiplying its piece.</li>
+<li><dfn>Pipeline parallelism</dfn>: different layers live on different GPUs, and batches flow through them like an assembly line.</li>
+<li><strong>Expert parallelism</strong>: in MoE models, different experts live on different GPUs.</li>
+</ul>
+{{fig:parallelism|Three ways to split work across GPUs. Data parallel: same model, different data. Tensor parallel: each layer cut into slices. Pipeline parallel: layers in stages.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Making ten thousand sandwiches. Data parallelism: several identical kitchens each make their own share. Tensor parallelism: several cooks work on the same sandwich at once, one slicing, one buttering. Pipeline parallelism: an assembly line, where one station adds bread, the next adds filling, the next wraps. Big operations use all three at once.</p></div>
+<p>All these GPUs must constantly exchange numbers, so the network between them is as important as the chips. The fastest training clusters are, in effect, giant single computers.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>CPU / GPU</dt><dd>A few powerful general cores / thousands of simple parallel ones.</dd>
+<dt>Tensor core</dt><dd>A circuit that multiplies small matrix blocks very fast.</dd>
+<dt>VRAM, HBM</dt><dd>A graphics card's own memory; the fast stacked kind in data centres.</dd>
+<dt>Memory bandwidth</dt><dd>How fast memory can deliver data; often the real speed limit.</dd>
+<dt>TPU, NPU</dt><dd>Google's AI chips; small AI engines in phones and laptops.</dd>
+<dt>NVLink, InfiniBand</dt><dd>Fast connections between GPUs and between servers.</dd>
+<dt>Data / tensor / pipeline parallelism</dt><dd>Splitting by data, by layer slices, or by layer stages.</dd>
+</dl></div>

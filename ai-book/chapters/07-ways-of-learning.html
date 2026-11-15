@@ -1,0 +1,58 @@
+<!-- part: 2 | num: 7 | title: Ways of learning | lede: Gradient descent is how a network learns. This chapter is about what it learns from: labelled answers, raw data, rewards, or another model's knowledge. -->
+
+<h2>Where does the right answer come from?</h2>
+<p>Every learning loop in Chapter 4 needed a “right answer” to measure the loss against. The main styles of machine learning differ in where that answer comes from.</p>
+
+<h2>Supervised learning: a teacher with an answer key</h2>
+<p>In <dfn>supervised learning</dfn>, every training example comes with the correct answer, called a <dfn>label</dfn>: this photo is a cat, this email is spam, this house sold for £250,000. The network learns to map inputs to labels.</p>
+<p>Supervised problems come in two kinds. <dfn>Classification</dfn> picks from a fixed set of categories (cat or dog, spam or not). <dfn>Regression</dfn> predicts an amount (a price, a temperature). Tiny AI does classification: teal or orange.</p>
+<p>The catch is that labels are expensive. Someone has to sit and label each example, and modern networks want millions of them.</p>
+<div class="box yours"><div class="label">In your projects</div>
+<p>Tiny AI's Teacher mode is supervised learning: the teacher supplies the true label for every point it quizzes. Learn-from-itself mode is what happens when the labels come from the model's own guesses instead, and you saw where that leads.</p></div>
+
+<h2>Unsupervised learning: find the structure yourself</h2>
+<p>In <dfn>unsupervised learning</dfn> there are no labels at all. The network looks for structure in raw data by itself. Typical jobs are <dfn>clustering</dfn> (grouping similar customers or songs together) and spotting <dfn data-idx="anomaly detection">anomalies</dfn> (the one credit-card payment that doesn't fit). Autoencoders, from the last chapter, are unsupervised.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Hand a child a box of mixed buttons and say nothing. Soon they have sorted them into piles: by colour, by size, by number of holes. Nobody told them the categories. That is clustering.</p></div>
+
+<h2>Self-supervised learning: hide part, guess it back</h2>
+<p><dfn>Self-supervised learning</dfn> is the trick behind the language-model revolution. Take raw, unlabelled data and hide part of it, then train the network to fill in the gap. The data supplies its own answers, so you need no human labellers, and you can use the entire internet.</p>
+<ul>
+<li>Hide the next word, and predict it from the words before: this is how GPT-style models learn (Chapter 10).</li>
+<li>Hide random words in the middle of a sentence and fill them in: this is how <dfn data-idx="BERT">BERT</dfn> (2018), a famous encoder model, learned.</li>
+<li>Hide patches of an image and reconstruct them; add noise and remove it (diffusion).</li>
+</ul>
+<p>To get good at guessing the missing piece, the network is forced to learn grammar, facts, and how the world works, because all of those help with the guessing.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>Self-supervised learning turns raw data into practice questions by blanking parts of it out. It needs no human labels, which is why language models can learn from trillions of words.</p></div>
+
+<h2>Reinforcement learning: learning from rewards</h2>
+<p>In <dfn data-idx="reinforcement learning (RL)">reinforcement learning</dfn> (RL), nobody gives the right answer. Instead, an <dfn>agent</dfn> takes <dfn data-idx="action (RL)">actions</dfn> in an <dfn data-idx="environment (RL)">environment</dfn> and receives a <dfn>reward</dfn>: points in a game, or a thumbs-up from a person. It learns, by trial and error, which actions lead to more reward over time. The agent's strategy for choosing actions is called its <dfn>policy</dfn>.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Training a dog. You can't explain what “sit” means, but each time it happens to sit when you say the word, it gets a treat. Over many tries, the dog works out what earns treats. The dog is the agent, the treat is the reward, and its habits are the policy.</p></div>
+<p>RL is hard because rewards often come late. A chess move that wins the game might have been made forty moves earlier; working out which earlier action deserves credit is called the <em>credit assignment</em> problem. RL famously produced <dfn>AlphaGo</dfn>, which beat the world's best Go player in 2016. For language models, RL is used after the main training to make models more helpful (<em>RLHF</em>) and to train them to reason through problems (Chapters 10 and 11).</p>
+<div class="box know"><div class="label">Good to know</div>
+<p>RL agents are famous for finding loopholes. An agent rewarded for points in a boat-racing game learned to spin in circles collecting bonus items forever instead of finishing the race. Getting the reward to match what you actually want is called <em>reward design</em>, and doing it badly leads to <dfn>reward hacking</dfn>. This is a real concern in AI safety (Chapter 18).</p></div>
+
+<h2>Standing on shoulders: transfer learning and fine-tuning</h2>
+<p>Training a big network from scratch is expensive. <dfn>Transfer learning</dfn> starts instead from a network already trained on a large general task, and adapts it to a new, smaller one. A network that already knows edges, textures and shapes from millions of photos can learn to spot diseased leaves from a few hundred examples.</p>
+<p>The general network is called a <dfn data-idx="pretrained model">pretrained</dfn> model, or, when it is very large and broadly useful, a <dfn>foundation model</dfn>. Continuing to train it on your specific data is <dfn>fine-tuning</dfn>.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Hiring an experienced chef and teaching them your restaurant's menu, instead of training someone who has never cooked. They already know knives, heat and seasoning. You only teach what's new.</p></div>
+
+<h2>Learning from a bigger model: distillation</h2>
+<p><dfn data-idx="distillation">Knowledge distillation</dfn> trains a small “student” model to imitate a large “teacher” model's answers, including how confident the teacher was in each option. The student ends up far better than it would by learning from the raw data alone. Many small, fast models you can run on a laptop or phone were made this way.</p>
+
+<h2>Learning that never stops: online and continual learning</h2>
+<p>Most models learn once and are then frozen. <dfn data-idx="continual learning">Continual learning</dfn> means continuing to learn from new data over time, as the world changes. Its big obstacle is <dfn>catastrophic forgetting</dfn>: learning new things tends to overwrite old ones. You saw a version of this in Tiny AI's rotating world, where old dots went out of date and had to be forgotten on purpose. Solving it well is still an open research problem.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Supervised</dt><dd>Learning from examples with correct labels.</dd>
+<dt>Unsupervised</dt><dd>Finding structure with no labels.</dd>
+<dt>Self-supervised</dt><dd>Hiding part of the data and guessing it back.</dd>
+<dt>Reinforcement learning</dt><dd>Learning by trial and error from rewards.</dd>
+<dt>Policy</dt><dd>An RL agent's strategy for choosing actions.</dd>
+<dt>Transfer, fine-tuning</dt><dd>Adapting a pretrained model to a new task.</dd>
+<dt>Distillation</dt><dd>Training a small model to imitate a big one.</dd>
+<dt>Catastrophic forgetting</dt><dd>New learning erasing old knowledge.</dd>
+</dl></div>
