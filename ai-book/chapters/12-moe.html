@@ -1,0 +1,76 @@
+<!-- part: 3 | num: 12 | title: Mixture of Experts | lede: What if a model could have the knowledge of a giant but the running cost of something much smaller? That is the promise of Mixture of Experts, the design behind many of today's largest models. -->
+
+<h2>The problem with dense models</h2>
+<p>In the transformer from Chapter 9, every token passes through every weight in every layer. A 70-billion-parameter model does about 70 billion multiply-adds for every single token it reads or writes. Models built this way are called <dfn data-idx="dense model">dense</dfn>.</p>
+<p>That's wasteful. When the model is working on a line of Python code, it probably doesn't need the parts of itself that know about medieval poetry. Yet a dense model consults everything, every time. Making it twice as knowledgeable means making every token twice as expensive.</p>
+
+<h2>The idea: specialists and a receptionist</h2>
+<p>A <dfn data-idx="Mixture of Experts (MoE)">Mixture of Experts</dfn> (MoE) model replaces the single feed-forward network in each transformer block with many smaller feed-forward networks side by side, called <dfn data-idx="expert (MoE)">experts</dfn>, plus a tiny network called the <dfn data-idx="router (MoE)">router</dfn> (or gating network). For each token, the router picks just a few experts to use. The rest sit idle for that token.</p>
+{{fig:moe_block|Inside one MoE layer. The router scores every expert for this token and sends it to the top two. Their outputs are combined, weighted by the router's scores. The other experts do no work for this token.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A hospital. In a dense model, every patient is examined by every doctor in the building: thorough, but absurdly slow. In an MoE hospital, a receptionist at the entrance (the router) looks at each patient and sends them to the two most suitable specialists. The hospital can employ hundreds of specialists, but each patient only takes up two doctors' time.</p></div>
+
+<h3>How routing works</h3>
+<ol>
+<li>The token's current numbers (from the residual stream) go into the router, which is just a small table of weights.</li>
+<li>The router outputs a score for each expert, and a softmax turns the scores into shares.</li>
+<li>The top <em>k</em> experts are chosen, typically 1, 2 or 8, depending on the model. This is called <dfn data-idx="top-k routing">top-k routing</dfn>.</li>
+<li>The token is processed by just those experts, and their outputs are added together, weighted by the router's shares.</li>
+</ol>
+<p>The router is trained along with everything else by backpropagation. Nobody tells it which expert is for what; it learns whatever routing makes the predictions best.</p>
+
+<h2>Total versus active parameters</h2>
+<p>MoE splits the meaning of “model size” in two, and this is the single most important thing to understand when reading about these models:</p>
+<ul>
+<li><dfn data-idx="total parameters">Total parameters</dfn>: every weight in the model, including all the experts. This decides how much <strong>memory</strong> you need to hold it, and roughly how much it can know.</li>
+<li><dfn data-idx="active parameters">Active parameters</dfn>: the weights actually used for one token. This decides how much <strong>computation</strong> each token costs, and so how fast it runs.</li>
+</ul>
+{{fig:dense_vs_moe|A dense model uses all its weights for every token. An MoE model with the same total size uses only a fraction per token, so it runs much faster, though it still needs memory for all of it.}}
+<table>
+<tr><th>Model (year)</th><th class="num">Experts per layer</th><th class="num">Used per token</th><th class="num">Total</th><th class="num">Active</th></tr>
+<tr><td>Mixtral 8x7B (2023)</td><td class="num">8</td><td class="num">2</td><td class="num">47B</td><td class="num">13B</td></tr>
+<tr><td>DeepSeek-V3 (2024)</td><td class="num">256 + 1 shared</td><td class="num">8 + 1</td><td class="num">671B</td><td class="num">37B</td></tr>
+<tr><td>A dense 70B model, for comparison</td><td class="num">–</td><td class="num">–</td><td class="num">70B</td><td class="num">70B</td></tr>
+</table>
+<p>So DeepSeek-V3 holds nearly ten times the parameters of a 70B dense model, yet each token costs about half as much computation. That trade is why so many large models released since 2024 are MoE. Several frontier labs are widely reported to use MoE too, though most don't publish their architectures.</p>
+<div class="box know"><div class="label">Good to know: reading the names</div>
+<p>MoE model names often encode the sizes. “8x7B” means eight experts of roughly a 7B model each, although the total is less than 8 × 7 = 56B, because the attention layers and embeddings are shared, not copied. A name like “30B-A3B” means 30 billion total parameters with 3 billion <strong>A</strong>ctive per token.</p></div>
+
+<h2>A common misunderstanding</h2>
+<p>The word “expert” suggests a maths expert, a history expert and a coding expert, like separate chatbots inside one. That is not how it works.</p>
+<ul>
+<li>The experts are not whole models. Each is one feed-forward network inside one layer. A model with 32 layers and 8 experts per layer has 256 expert networks in total, and every layer routes independently.</li>
+<li>Routing happens per token, not per question. Within a single sentence, consecutive tokens are often sent to different experts.</li>
+<li>Specialisation is real but rarely matches human subjects. When researchers inspect routers, they often find experts that prefer things like punctuation, numbers, particular word pieces, or code syntax, rather than “history”.</li>
+</ul>
+{{fig:routing|How tokens might be routed in one layer of a model with 6 experts and top-2 routing. Each token picks its own pair of experts; neighbouring tokens often differ.}}
+
+<h2>Keeping the experts busy: load balancing</h2>
+<p>Left alone, routers tend to fall into a lazy habit: a few experts get slightly better early on, so the router sends them more tokens, so they improve more, so they get even more tokens. Soon most experts sit idle, wasting their parameters. This is called <dfn data-idx="routing collapse">routing collapse</dfn>.</p>
+<p>To prevent it, training adds <dfn>load balancing</dfn>: usually a small extra penalty in the loss (an <dfn data-idx="auxiliary loss">auxiliary loss</dfn>) whenever the tokens are spread too unevenly, or an adjustment that nudges the router towards under-used experts. Some designs also include <dfn data-idx="shared expert">shared experts</dfn> that every token always uses, to handle common knowledge, so the routed experts can specialise.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>If the receptionist sends every patient to the same famous doctor, the queue becomes enormous and the other doctors forget their training. A good hospital manager watches the queues and steers patients to doctors with spare time, as long as they're suitable.</p></div>
+<p>There is also a hardware limit. Each expert can only handle so many tokens per batch, called its <dfn>capacity</dfn>. If too many tokens choose the same expert, some may be passed on without that expert's processing (<em>token dropping</em>). Balancing keeps this rare.</p>
+
+<h2>The costs of MoE</h2>
+<ul>
+<li><strong>Memory.</strong> Every expert must be loaded, even though few are used per token. A 47B-total MoE needs memory for 47B parameters while running at the speed of a 13B one. For home users with limited graphics memory, this is often the deciding factor.</li>
+<li><strong>Communication.</strong> In data centres, experts are spread across many GPUs (<dfn>expert parallelism</dfn>), so tokens must be shuttled between chips constantly. Fast connections between chips matter even more than usual (Chapter 14).</li>
+<li><strong>Training is fiddlier.</strong> Routing collapse and instability need careful handling.</li>
+<li><strong>Per-parameter efficiency.</strong> An MoE model is usually somewhat less capable than a dense model with the same <em>total</em> parameters, but far more capable than a dense model with the same <em>active</em> parameters. It wins on cost, not on size.</li>
+</ul>
+
+<h2>A short history</h2>
+<p>The idea of a mixture of experts with a gating network dates from 1991, decades before deep learning. In 2017 Noam Shazeer and colleagues at Google built a “sparsely-gated” MoE layer with thousands of experts inside a language model. Google's <dfn>Switch Transformer</dfn> (2021) simplified routing to a single expert per token and scaled past a trillion parameters. Mixtral (2023) made a high-quality open MoE model widely available, and DeepSeek's models (2024–2025) showed how far very fine-grained experts could go. MoE models are often called <dfn data-idx="sparse model">sparse</dfn> models, because only a small part of the network is active at any moment.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>An MoE model has many alternative feed-forward networks in each layer and a router that picks a few per token. You get the knowledge capacity of all the experts for roughly the running cost of the few you use. The catch: you still need memory for all of them.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Dense model</dt><dd>Every weight is used for every token.</dd>
+<dt>Mixture of Experts</dt><dd>Many expert networks per layer; a router picks a few per token.</dd>
+<dt>Router / gate</dt><dd>The small network that scores and chooses experts.</dd>
+<dt>Top-k routing</dt><dd>Sending each token to its k best-scoring experts.</dd>
+<dt>Total vs active</dt><dd>All parameters (memory) vs those used per token (speed).</dd>
+<dt>Load balancing</dt><dd>Keeping work spread evenly across experts.</dd>
+<dt>Sparse model</dt><dd>A model where only part of the network runs at a time.</dd>
+</dl></div>

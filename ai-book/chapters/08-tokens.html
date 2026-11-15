@@ -1,0 +1,53 @@
+<!-- part: 3 | num: 8 | title: Turning words into numbers | lede: Neural networks only understand numbers. Before a language model can read a single word, text has to be chopped into pieces and each piece turned into a list of numbers that captures its meaning. -->
+
+<h2>Chopping text into tokens</h2>
+<p>A language model does not read letters, and it does not read whole words either. It reads <dfn data-idx="token">tokens</dfn>: chunks of text that are usually a whole short word, a piece of a longer word, a space plus a word, or a punctuation mark. Here is how a typical modern tokenizer splits a sentence:</p>
+<div class="tokens"><span>The</span><span> whale</span><span> sw</span><span>am</span><span> beneath</span><span> the</span><span> un</span><span>believ</span><span>ably</span><span> calm</span><span> sea</span><span>.</span></div>
+<p class="formula" style="font-family: var(--sans); background: none; font-size: 8pt; color: var(--muted)">Each coloured box is one token. Common words are one token; rarer words are split into familiar pieces.</p>
+<p>The program that does the chopping is the <dfn>tokenizer</dfn>, and the full list of pieces it knows is its <dfn>vocabulary</dfn>. Modern vocabularies hold roughly 30,000 to 200,000 tokens. Each token has an ID number, so the sentence above becomes a list of twelve whole numbers before the model sees it.</p>
+<div class="box know"><div class="label">Good to know</div>
+<p>As a rule of thumb, in English one token is about three-quarters of a word, so 1,000 tokens is roughly 750 words. AI services charge by the token, and model limits are measured in tokens, so this ratio is worth remembering.</p></div>
+
+<h2>How the vocabulary is chosen: byte-pair encoding</h2>
+<p>Why pieces, rather than letters or whole words? Letters make text very long (Tiny Writer has to take a separate step for every letter). Whole words would need millions of entries and would still fail on new words, typos and names. Pieces are the compromise.</p>
+<p>The most common method for choosing the pieces is <dfn data-idx="byte-pair encoding (BPE)">byte-pair encoding</dfn> (BPE). It starts with single characters, then repeatedly finds the pair of neighbours that appears most often in a big sample of text, and merges them into a new token. “t” + “h” becomes “th”; “th” + “e” becomes “the”; and so on, tens of thousands of times. Frequent words end up as single tokens. Rare words remain split into reusable pieces.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Text messaging shorthand. People who type “by the way” constantly invent “btw”. BPE does the same thing automatically: whatever sequences of letters appear constantly get their own shortcut.</p></div>
+
+<h3>Some odd side effects</h3>
+<ul>
+<li><strong>Spelling is hard for models.</strong> If “strawberry” arrives as two or three tokens, the model never directly sees its individual letters, which is why models have historically been bad at counting letters in words.</li>
+<li><strong>Numbers get chopped strangely.</strong> “2026” might be one token while “2027” is two. This is one reason arithmetic is harder for language models than you might expect.</li>
+<li><strong>Other languages can cost more.</strong> Tokenizers trained mostly on English need more tokens to write the same sentence in, say, Persian or Hindi. More tokens means slower and more expensive.</li>
+</ul>
+<p>Tokenizers also add <dfn data-idx="special tokens">special tokens</dfn> that are never typed by a person, such as markers for “start of text”, “end of text”, or “the user's message begins here”. Chat models use these to know who is speaking.</p>
+
+<h2>From token to meaning: embeddings</h2>
+<p>A token ID like 8,420 is just a label; the number itself means nothing (token 8,421 is not similar to 8,420). So the first thing a language model does is look up each token in a big table and swap it for a long list of numbers, called an <dfn>embedding</dfn>. In a mid-sized model, each embedding might be 4,096 numbers long. That length is called the model's <dfn>embedding dimension</dfn> (or hidden size, or <em>d<sub>model</sub></em>).</p>
+<p>The embedding table is learned during training, like every other weight. And something remarkable happens: tokens with similar meanings end up with similar lists of numbers. If you think of each list as a point in space (with thousands of directions instead of three), words cluster by meaning.</p>
+{{fig:embed_map|A two-dimensional cartoon of an embedding space. Real embeddings have thousands of dimensions, but the idea is the same: similar meanings sit close together, and some directions carry consistent meanings.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A map of a city where every word has an address. Animals live in one neighbourhood, vehicles in another, numbers in a third. “Kitten” lives next door to “cat”. And directions mean something: walking from “man” to “woman” is about the same journey as walking from “king” to “queen”.</p></div>
+<p>That last idea is a famous discovery from 2013: you could take the embedding for <em>king</em>, subtract <em>man</em>, add <em>woman</em>, and land closest to <em>queen</em>. Directions in embedding space can encode concepts like gender, tense or plurality. Embeddings are also used on their own, outside chat models, to search documents by meaning rather than exact words (Chapter 13).</p>
+
+<h2>Where is each word? Positions</h2>
+<p>“The dog bit the man” and “The man bit the dog” contain the same tokens. A transformer reads all tokens at once, so it needs to be told their order. This is done with a <dfn>positional encoding</dfn>: extra information added to each token's embedding that says where in the sequence it sits. Early models added a learned “position embedding” (Tiny Writer does this). Most modern models use a cleverer method called <dfn data-idx="RoPE (rotary position embedding)">rotary position embedding</dfn> (RoPE), which gently rotates the numbers by an amount that depends on position, so the model can easily tell how far apart two tokens are.</p>
+
+<h2>The context window</h2>
+<p>A model can only look at a limited number of tokens at once: your message, the conversation so far, any documents you pasted, and its own reply. That limit is the <dfn>context window</dfn> (or context length). Tiny Writer's is 64 characters. GPT-1's was 512 tokens. Many current models handle 128,000 tokens or more, which is a few hundred pages.</p>
+{{fig:context|The context window is everything the model can see at once. Anything that falls outside it is simply not available to the model.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A desk. The model works only with what is on the desk: it can glance at any page there, instantly. Anything that doesn't fit on the desk is out of the room entirely. A bigger context window is a bigger desk, not a better brain: the model doesn't understand more, it just has more in front of it.</p></div>
+<p>The text you give the model is called the <dfn>prompt</dfn>. Many chat products also add a hidden <dfn>system prompt</dfn> at the start, with instructions about the model's role and rules. Everything, system prompt included, has to fit in the context window. When a conversation gets too long, older parts must be cut or summarised. This is why a chatbot can “forget” what you said at the start of a very long chat.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>Text becomes tokens, tokens become embeddings (lists of numbers that capture meaning), positions are added, and everything must fit in the context window. Only then does the real thinking start.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Token</dt><dd>A chunk of text, often a word or part of one; about ¾ of a word on average.</dd>
+<dt>Tokenizer, vocabulary</dt><dd>The program that splits text, and the list of pieces it knows.</dd>
+<dt>BPE</dt><dd>Building a vocabulary by repeatedly merging the most common pairs.</dd>
+<dt>Embedding</dt><dd>A learned list of numbers representing a token's meaning.</dd>
+<dt>Positional encoding</dt><dd>Information telling the model where each token sits.</dd>
+<dt>Context window</dt><dd>How many tokens the model can see at once.</dd>
+<dt>Prompt, system prompt</dt><dd>The text given to the model, and hidden instructions at the start.</dd>
+</dl></div>

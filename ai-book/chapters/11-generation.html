@@ -1,0 +1,60 @@
+<!-- part: 3 | num: 11 | title: How a model writes | lede: A trained model only ever does one thing: produce probabilities for the next token. Everything you see when you chat with one, from creativity to “thinking”, is built on top of that single step. -->
+
+<h2>One token at a time</h2>
+<p>When you send a message, the model reads the whole context and produces a probability for every token in its vocabulary. One token is picked. It is added to the end of the text, and the whole process runs again to pick the next one. This loop continues until the model produces a special <em>end</em> token or hits a length limit. This is called <dfn data-idx="autoregressive generation">autoregressive generation</dfn>, and it is why chatbot replies appear word by word.</p>
+{{fig:genloop|The generation loop. The model predicts the next token, one is chosen, it is appended to the text, and the longer text goes back in.}}
+<div class="box plain"><div class="label">In plain words</div>
+<p>A language model never plans a whole answer and then types it out. It writes one token, then reads everything again, including what it just wrote, and writes the next. Any plan it has exists only in its internal numbers and in the text so far.</p></div>
+
+<h2>Choosing the next token: sampling</h2>
+<p>The model gives probabilities, not a decision. How a token is picked from them is called <dfn>sampling</dfn>, or the <dfn data-idx="decoding strategy">decoding strategy</dfn>.</p>
+<ul>
+<li><dfn data-idx="greedy decoding">Greedy decoding</dfn> always takes the single most likely token. It is predictable, but tends to be dull and can get stuck repeating itself.</li>
+<li><strong>Random sampling</strong> picks tokens in proportion to their probability: a 60% token is picked 60% of the time. This gives variety, and is why asking the same question twice gives different answers.</li>
+</ul>
+<h3>Temperature</h3>
+<p><dfn>Temperature</dfn> adjusts how adventurous the sampling is. It reshapes the probabilities before picking. Low temperature (say 0.2) sharpens them, so the favourite almost always wins: focused, consistent, repetitive. High temperature (say 1.5) flattens them, so unlikely tokens get a real chance: creative, surprising, and more error-prone. Temperature 0 is the same as greedy.</p>
+{{fig:temperature|The same next-token probabilities at three temperatures. Low temperature makes the top choice dominate; high temperature spreads the chances out.}}
+<div class="box yours"><div class="label">In your projects</div>
+<p>Tiny Writer's “Creativity” slider is temperature. Try “Call me” at 0.2 and at 1.5 and compare.</p></div>
+<h3>Top-k and top-p</h3>
+<p>Even at normal temperature, thousands of very unlikely tokens together hold a little probability, and occasionally one is picked, sending the text off the rails. Two common filters cut off that tail first:</p>
+<ul>
+<li><dfn data-idx="top-k sampling">Top-k</dfn>: only consider the k most likely tokens (say the top 40).</li>
+<li><dfn data-idx="top-p (nucleus) sampling">Top-p</dfn>, or nucleus sampling: only consider the smallest set of top tokens whose probabilities add up to p (say 90%). When the model is confident, that might be two tokens; when it is unsure, two hundred.</li>
+</ul>
+
+<h2>Speed: prefill, decode and the KV cache</h2>
+<p>Generating a reply has two phases. First, <dfn>prefill</dfn>: the model reads your whole prompt in one go, which GPUs do efficiently because all tokens can be processed in parallel. Then <dfn>decode</dfn>: tokens come out one by one, each needing a pass through the entire model. Speed is quoted as <dfn data-idx="tokens per second">tokens per second</dfn>, and the delay before the first token appears is the <dfn data-idx="time to first token">time to first token</dfn>.</p>
+<p>Recomputing attention over the whole text for every new token would be wasteful, because the keys and values for earlier tokens never change. So the model saves them in memory as it goes. This saved store is the <dfn>KV cache</dfn> (key–value cache). Each new token only computes its own query, key and value, and looks up everyone else's.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Writing a long essay and, before each new sentence, re-reading everything from the start. The KV cache is keeping index cards with the key points of each paragraph already written. You glance at the cards instead of re-reading the whole essay.</p></div>
+<p>The KV cache costs memory, and it grows with the length of the conversation. For long contexts it can take more memory than the model weights themselves, which is one reason long context windows are expensive to serve (Chapter 15).</p>
+<div class="box know"><div class="label">Good to know</div>
+<p><dfn>Speculative decoding</dfn> speeds things up with a helper: a small, fast model guesses the next several tokens, and the big model checks them all at once in one pass. Where the small model guessed right, several tokens are produced for the price of one big step. The output is identical to what the big model would have written alone.</p></div>
+
+<h2>Learning in the prompt</h2>
+<p>A trained model's weights are fixed, yet it can still pick up new tasks from the prompt alone. Show it three examples of turning English into pirate-speak, then give a fourth sentence, and it will continue the pattern. This is called <dfn>in-context learning</dfn>. Giving examples is <dfn data-idx="few-shot prompting">few-shot</dfn> prompting; asking with no examples is <dfn data-idx="zero-shot">zero-shot</dfn>. Nothing in the model changes; the examples only shape what the most likely continuation is. Writing prompts that get good results is called <dfn>prompt engineering</dfn>.</p>
+
+<h2>Thinking before answering</h2>
+<p>Since the model produces one token at a time, each token gets a fixed, limited amount of computation. A hard maths problem may need more thought than one step allows. The fix is to let the model write out its working: “first… then… so…”. Each written step becomes context for the next, so the model can build up a long chain of reasoning. Asking for this is called <dfn data-idx="chain of thought">chain-of-thought</dfn> prompting, and it measurably improves answers on hard problems.</p>
+<p>Reasoning models (Chapter 10) are trained to do this automatically, often writing thousands of tokens of private working, sometimes shown to you as “thinking”, before the final answer. Spending more computation at answer time instead of training time is called <dfn data-idx="test-time compute">test-time compute</dfn>: a model allowed to think longer usually does better on hard problems, at the cost of time and money.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Mental arithmetic versus pen and paper. Ask someone to multiply 47 × 38 instantly and they'll probably guess. Give them paper and a minute, and they'll get it right. The model's “paper” is the text it writes for itself.</p></div>
+
+<h2>Why models make things up</h2>
+<p>Language models sometimes state false things with complete confidence: invented quotes, fake references, wrong dates. This is called <dfn data-idx="hallucination">hallucination</dfn> (or confabulation). It follows naturally from how they work. A model is trained to produce the most <em>plausible</em> continuation, and a plausible-sounding answer is not always a true one. When the model doesn't have the fact, the likeliest-looking text is still a confident sentence of the usual shape.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A very confident student who hates saying “I don't know”. Asked about a book they haven't read, they produce a fluent summary built from the title, the author's other work and general knowledge. Parts are right, parts are invented, and it all sounds equally sure.</p></div>
+<p>Post-training reduces this by rewarding models for saying when they are unsure, and tools like search (Chapter 13) let models check facts. It has not been eliminated. Check anything important.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Autoregressive generation</dt><dd>Writing one token at a time, feeding each back in.</dd>
+<dt>Sampling</dt><dd>How the next token is chosen from the probabilities.</dd>
+<dt>Temperature</dt><dd>Low: focused and predictable. High: varied and risky.</dd>
+<dt>Top-k, top-p</dt><dd>Cutting off unlikely tokens before choosing.</dd>
+<dt>KV cache</dt><dd>Saved keys and values so earlier tokens aren't recomputed.</dd>
+<dt>In-context learning</dt><dd>Picking up a task from examples in the prompt.</dd>
+<dt>Chain of thought</dt><dd>Writing out reasoning step by step before answering.</dd>
+<dt>Hallucination</dt><dd>Confident, plausible, false output.</dd>
+</dl></div>

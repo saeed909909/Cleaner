@@ -1,0 +1,54 @@
+<!-- part: 1 | num: 3 | title: Networks: neurons in layers | lede: One neuron draws a line. Connect a few hundred in layers and they can draw almost anything. This is where “neural network” comes from. -->
+
+<h2>Layers</h2>
+<p>A <dfn>neural network</dfn> is many artificial neurons wired together. Almost always, they are arranged in <dfn data-idx="layer">layers</dfn>. Each neuron in a layer takes as its inputs the outputs of the layer before it.</p>
+<ul>
+<li>The <dfn>input layer</dfn> is not really neurons at all. It is just the data going in: two numbers for a dot's position in Tiny AI, or millions of pixel brightnesses for a photo.</li>
+<li>The <dfn data-idx="hidden layer">hidden layers</dfn> sit in the middle. They are “hidden” only because you never see their values directly; they are the network's private working-out.</li>
+<li>The <dfn>output layer</dfn> gives the answer: one number for yes/no, ten numbers for “which digit is this?”, or tens of thousands for “which word comes next?”.</li>
+</ul>
+{{fig:tiny_net|Tiny AI's fixed network, drawn to scale: 2 inputs, a hidden layer of 13 neurons, a hidden layer of 4, and 1 output. Every line is one weight. Teal lines are positive weights, orange are negative.}}
+
+<p>When every neuron in one layer connects to every neuron in the next, as in the figure, the layer is called <dfn data-idx="fully connected layer">fully connected</dfn> or <dfn data-idx="dense layer">dense</dfn>. A network made only of dense layers is called a <dfn>multilayer perceptron</dfn> (MLP). It is the oldest and simplest kind of deep network, and it still appears inside every modern language model.</p>
+
+<h2>Counting parameters</h2>
+<p>Because every line in the drawing is a weight, and every neuron has one bias, you can count a network's parameters by hand. For one dense layer:</p>
+<p class="formula">parameters = (inputs × neurons) + neurons</p>
+<p>For Tiny AI: (2 × 13 + 13) + (13 × 4 + 4) + (4 × 1 + 1) = 39 + 56 + 5 = <strong>100</strong>.</p>
+<p>Notice that the middle term dominates. The number of weights between two layers is the product of their sizes, so doubling the width of two neighbouring layers roughly <em>quadruples</em> the weights between them. This is why parameter counts explode as networks get bigger, and why Tiny AI slowed down so much when you let it grow.</p>
+<div class="box yours"><div class="label">In your projects</div>
+<p>When Tiny AI grew a neuron in its first hidden layer, it added 2 incoming weights, 1 bias, and one outgoing weight for every neuron in the next layer. That is why the parameter count jumped by more than one each time.</p></div>
+
+<h2>The forward pass</h2>
+<p>Running data through a network from input to output is called the <dfn>forward pass</dfn>. Each layer takes the numbers from the previous layer, does multiply–add–squash in every neuron, and hands its results on. The final layer's numbers are the answer.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A network is like a factory assembly line. Raw materials (the input) enter at one end. Each station (layer) takes what the last station made, does its own small job, and passes the result along. No single worker understands the whole product, but the finished item rolls off the end. Early stations do simple things; later stations combine those into something complex.</p></div>
+
+<h2>What the hidden layers learn</h2>
+<p>When researchers look inside networks trained on photos, they find a striking pattern. The first layers learn to detect very simple things: edges, colours, small stripes. The middle layers combine those into textures and parts: an eye, a wheel, fur. The later layers combine parts into whole objects: a face, a car, a cat.</p>
+{{fig:features|Layers build on each other. Early layers detect edges; middle layers combine edges into parts; later layers combine parts into whole objects. Nobody programs this; it emerges during training.}}
+<p>Each layer's outputs are a new description of the input, a little more abstract than the last. This is the real meaning of “deep” in deep learning: many layers, each building a richer description on top of the one below. The word for these learned descriptions is <dfn data-idx="representation">representations</dfn>, or sometimes <dfn data-idx="feature">features</dfn>.</p>
+
+<h2>A layer is really a table of numbers</h2>
+<p>Drawing every neuron and line stops being practical past a few dozen neurons. Engineers instead think of a layer as a grid of numbers: one row for each neuron, one column for each input. This grid is called a <dfn>matrix</dfn>. A list of numbers, like the inputs, is called a <dfn>vector</dfn>, and a block of numbers with more dimensions is called a <dfn>tensor</dfn> (that is where the name TensorFlow comes from).</p>
+{{fig:matrix|A dense layer as a table. Each row holds one neuron's weights. Feeding the inputs through the layer means multiplying each row by the input column and adding up: a matrix multiplication.}}
+<p>Running a whole layer is then one big calculation called a <dfn>matrix multiplication</dfn>: multiply-and-add every row by the input. This one operation is so central that AI hardware is, more or less, a machine for doing matrix multiplications as fast as possible. Hold onto that thought for Chapter 14.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>Neural networks are layers of neurons. In practice, each layer is a big table of weights, and running the network means multiplying tables of numbers together, very many times.</p></div>
+
+<h2>Many answers at once: softmax</h2>
+<p>Tiny AI only answered teal or orange, so one output neuron with a sigmoid was enough. What if there are ten possible answers, like the digits 0 to 9? Then the output layer has ten neurons, and a function called <dfn>softmax</dfn> turns their ten raw totals into ten probabilities that add up to 100%. The raw totals before softmax are called <dfn data-idx="logits">logits</dfn>. You will meet both words again: a language model is a network whose output layer has one neuron per possible next word-piece, followed by a softmax.</p>
+{{fig:softmax|Softmax turns raw scores (logits) into probabilities. Bigger scores get a much bigger share, but every option keeps at least a little chance.}}
+
+<h2>How powerful can a network be?</h2>
+<p>A famous result called the <dfn>universal approximation theorem</dfn> says that a network with even one hidden layer can, in principle, imitate any reasonable pattern, if it has enough neurons. That sounds as if size is all you need. In practice, deeper networks learn the same patterns with far fewer neurons than wide shallow ones, and they are easier to train. The theorem also says nothing about whether training will actually <em>find</em> the right weights, or how much data that takes. Finding the weights is the subject of the next chapter.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Layer</dt><dd>A group of neurons that all read the same inputs.</dd>
+<dt>Hidden layer</dt><dd>Any layer between the input and the output.</dd>
+<dt>Dense / fully connected</dt><dd>Every neuron connects to every input.</dd>
+<dt>MLP</dt><dd>A network made only of dense layers.</dd>
+<dt>Forward pass</dt><dd>Running data through the network to get an answer.</dd>
+<dt>Matrix / vector / tensor</dt><dd>A table / a list / a many-dimensional block of numbers.</dd>
+<dt>Logits, softmax</dt><dd>Raw output scores, and the function that turns them into probabilities.</dd>
+</dl></div>

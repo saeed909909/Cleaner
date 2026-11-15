@@ -1,0 +1,82 @@
+<!-- part: 3 | num: 9 | title: The transformer and attention | lede: In 2017 a paper titled “Attention Is All You Need” described a new architecture. Almost every AI system you have heard of since is built on it. Here is how it works, piece by piece. -->
+
+<h2>The problem: meaning depends on context</h2>
+<p>Consider the word <em>bank</em> in two sentences: “She sat on the river bank” and “She paid money into the bank.” The token is identical, so its embedding from Chapter 8 is identical too. But the meanings are completely different. To understand any word, a model has to look at the words around it.</p>
+<p>Or consider: “The animal didn't cross the street because <em>it</em> was too tired.” What does <em>it</em> refer to? You know instantly: the animal, because streets don't get tired. Change one word, “because it was too wide”, and <em>it</em> now means the street. Working this out requires connecting words that can be far apart. RNNs struggled with exactly this. Attention solves it.</p>
+
+<h2>Attention: every word looks around</h2>
+<p><dfn>Attention</dfn> lets every token gather information from every other token it can see, taking more from the ones that are relevant to it. After an attention layer, the token <em>it</em> is no longer just “it”: its numbers have been mixed with a large share of <em>animal</em>'s, so it now carries the meaning “it, which is the animal”. Because the tokens are attending to others in the same text, this is called <dfn data-idx="self-attention">self-attention</dfn>.</p>
+{{fig:attention_arcs|Attention from the word “it”. Thicker lines mean more attention. The model has learned that “it” most likely refers to “animal”, and pulls that meaning in.}}
+
+<h3>Queries, keys and values</h3>
+<p>How does a token decide what is relevant? Each token's embedding is turned, by three learned weight tables, into three new lists of numbers:</p>
+<ul>
+<li>a <dfn data-idx="query (attention)">query</dfn>: “what am I looking for?”</li>
+<li>a <dfn data-idx="key (attention)">key</dfn>: “what do I contain?”</li>
+<li>a <dfn data-idx="value (attention)">value</dfn>: “what will I hand over if you pick me?”</li>
+</ul>
+<p>Each token compares its query with every other token's key. A close match gives a high score. The scores go through a softmax, so they become shares that add up to 100%, called <dfn data-idx="attention weights">attention weights</dfn>. Finally, the token collects a blend of everyone's values, using those shares.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A library. You walk in with a question (your <strong>query</strong>). Every book has a label on its spine (its <strong>key</strong>). You compare your question with every label, and pull out the books that match best. Then you read their contents (their <strong>values</strong>), paying most attention to the best matches. The trick is that every word in the sentence is doing this at the same time, and the system learns what questions to ask and what labels to write.</p></div>
+{{fig:qkv|One attention step for one token. Its query is scored against every key; softmax turns the scores into shares; the output is a weighted blend of the values.}}
+
+<h3>Many heads</h3>
+<p>One attention pattern isn't enough: a word might need to know its grammatical subject, what a pronoun refers to, and the overall topic, all at once. So each attention layer runs several attention calculations side by side, each with its own query, key and value tables. Each one is called an <dfn data-idx="attention head">attention head</dfn>, and the whole arrangement is <dfn>multi-head attention</dfn>. Small models have a handful of heads; large ones have dozens per layer. Tiny Writer has 4.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Several editors reading the same draft, each with a different job. One checks grammar, one checks who did what to whom, one checks the facts, one checks the tone. Their notes are combined at the end.</p></div>
+
+<h3>No peeking: the causal mask</h3>
+<p>A model that writes text one token at a time must not be allowed to look at future tokens during training, or it would learn to cheat by copying the answer. So each token can only attend to itself and tokens <em>before</em> it. This restriction is called the <dfn>causal mask</dfn>, and a model using it is called <dfn data-idx="autoregressive model">autoregressive</dfn>.</p>
+{{fig:mask|The attention pattern as a grid. Each row is a token looking at the others. The causal mask blanks out the upper triangle, so no token can see the future.}}
+
+<h2>The transformer block</h2>
+<p>A transformer is a stack of identical <dfn data-idx="transformer block">blocks</dfn> (also called layers). Each block has two parts:</p>
+<ol>
+<li><strong>Attention</strong>, where tokens share information with each other.</li>
+<li>A <dfn data-idx="feed-forward network (FFN)">feed-forward network</dfn> (FFN, or MLP), a small two-layer network from Chapter 3 that processes each token on its own. If attention is where tokens <em>talk</em>, the feed-forward part is where each token <em>thinks</em> about what it heard. Much of a model's stored knowledge appears to live in these layers, and they usually hold about two-thirds of its parameters.</li>
+</ol>
+<p>Around each part sit two pieces from Chapter 5: a layer normalisation, to keep numbers in a healthy range, and a residual connection, so that each part <em>adds</em> its contribution rather than replacing what was there.</p>
+{{fig:block|One transformer block. Information flows up the residual stream; attention and the feed-forward network each read from it and add their results back. Real models stack dozens of these blocks.}}
+
+<h3>The residual stream</h3>
+<p>Because every part adds to the running total instead of overwriting it, you can picture a single stream of numbers for each token flowing up through all the blocks, being edited a little at each one. Researchers call this the <dfn>residual stream</dfn>.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A shared whiteboard for each word, passed up through a tall office building. On every floor, two teams look at it: the attention team, who check other words' whiteboards and add notes about context, and the feed-forward team, who add notes from their own knowledge. Nobody erases anything. By the top floor, the whiteboard holds a rich understanding of that word in its context.</p></div>
+
+<h2>The whole machine</h2>
+<p>Putting it together, a GPT-style language model is:</p>
+<ol>
+<li>Tokenizer: text to token IDs.</li>
+<li>Embedding table: token IDs to lists of numbers, plus position information.</li>
+<li>A stack of transformer blocks: GPT-1 had 12; large models have around 60 to 120.</li>
+<li>A final normalisation, then an <dfn data-idx="output head (unembedding)">output layer</dfn> that turns each token's final numbers into one score per vocabulary entry: the logits from Chapter 3.</li>
+<li>Softmax: the scores become probabilities for the next token.</li>
+</ol>
+<p>That's it. The same structure, scaled up enormously, is behind GPT-4, Claude, Gemini, Llama and nearly every other model you'll hear of.</p>
+
+<h3>Encoders, decoders and both</h3>
+<p>The original 2017 transformer was built for translation and had two halves: an encoder that read the source sentence with no mask, and a decoder that wrote the translation with a causal mask. Later designs kept one half or the other:</p>
+<table>
+<tr><th>Type</th><th>Sees</th><th>Good at</th><th>Examples</th></tr>
+<tr><td>Encoder-only</td><td>Whole text, both directions</td><td>Understanding, classifying, search</td><td>BERT</td></tr>
+<tr><td>Decoder-only</td><td>Only earlier tokens</td><td>Writing text</td><td>GPT, Claude, Llama</td></tr>
+<tr><td>Encoder–decoder</td><td>Both</td><td>Translation, summaries</td><td>Original transformer, T5</td></tr>
+</table>
+
+<h2>The cost of attention</h2>
+<p>Every token compares itself with every other token. Double the length of the text and there are four times as many comparisons. This is called <dfn data-idx="quadratic cost">quadratic</dfn> growth, and it is the main reason long context windows are expensive.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A party where everyone must shake hands with everyone else. Ten guests means 45 handshakes. A hundred guests means 4,950. A thousand guests means nearly half a million.</p></div>
+<p>A great deal of engineering goes into making attention cheaper. <dfn data-idx="FlashAttention">FlashAttention</dfn> reorganises the calculation to make far better use of the chip's fast memory. <dfn data-idx="grouped-query attention (GQA)">Grouped-query attention</dfn> lets several heads share the same keys and values to save memory. Other designs only let each token attend to a nearby window of tokens. You don't need the details, but you will see these names in model descriptions.</p>
+<div class="box yours"><div class="label">In your projects</div>
+<p>Tiny Writer is a real transformer: 64-character context, embedding size 64, 4 attention heads, 2 blocks, causal mask, residual connections and LayerNorm. Its <code>forward()</code> function, about fifteen lines long, follows this chapter step by step.</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Attention</dt><dd>Each token gathers information from the tokens relevant to it.</dd>
+<dt>Query, key, value</dt><dd>What a token looks for, what it contains, what it hands over.</dd>
+<dt>Attention head</dt><dd>One attention pattern; many run side by side.</dd>
+<dt>Causal mask</dt><dd>Stops tokens seeing the future.</dd>
+<dt>Feed-forward network</dt><dd>The per-token MLP inside each block.</dd>
+<dt>Residual stream</dt><dd>The running total each block reads from and adds to.</dd>
+<dt>Decoder-only</dt><dd>The GPT-style design: causal attention, writes text.</dd>
+</dl></div>

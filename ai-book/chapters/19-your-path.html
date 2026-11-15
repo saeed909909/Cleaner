@@ -1,0 +1,61 @@
+<!-- part: 5 | num: 19 | title: Putting it together: your path | lede: You now know the vocabulary. This last chapter tests it on a real-looking model description, maps your own projects onto the book, and suggests what to build and read next. -->
+
+<h2>Decoding a model description</h2>
+<p>Here is the kind of line you'll see on a model download page. It is made up, but every part of it is realistic:</p>
+{{fig:decode|A model description, decoded piece by piece. Every term here is explained somewhere in this book.}}
+<p>Reading it aloud: a 30-billion-parameter Mixture-of-Experts model, which uses only 3 billion parameters per token so it runs fast; it has been instruction-tuned to work as an assistant; it can see 32,000 tokens at once; and this copy is quantized to about 4 bits in the GGUF format, so it needs roughly 17–18 GB of memory. That's too much for an 8 GB graphics card on its own, though tools like llama.cpp can keep some layers in system RAM, and because only 3B parameters are active per token, it can still run at a usable speed. If you can follow that, you can follow almost any model announcement.</p>
+<div class="box plain"><div class="label">Try it yourself</div>
+<p>Next time you see a model release, try to answer: How many total and active parameters? Dense or MoE? Base or instruct? What context length? What precision is the file? Will it fit in my VRAM? Each answer is a chapter of this book.</p></div>
+
+<h2>Your projects, mapped to the book</h2>
+<table>
+<tr><th>What you built or did</th><th>What it is called</th><th>Chapter</th></tr>
+<tr><td>Tiny AI: 2 → 13 → 4 → 1 network, exactly 100 numbers</td><td>An MLP with 100 parameters</td><td class="num">2, 3</td></tr>
+<tr><td>Hand-written forward pass, backprop and Adam</td><td>Training with gradient descent</td><td class="num">4</td></tr>
+<tr><td>Crescents, rings, spiral; tap to test</td><td>Binary classification; inference</td><td class="num">3, 7</td></tr>
+<tr><td>Starting with 2 neurons and adding more when stuck</td><td>A growing (constructive) network</td><td class="num">3, 4</td></tr>
+<tr><td>“Real acc.” on fresh points</td><td>A held-out test set</td><td class="num">5</td></tr>
+<tr><td>Teacher mode: adding every mistake with the right answer</td><td>Supervised learning; hard-example mining; active learning</td><td class="num">7, 10</td></tr>
+<tr><td>Learn-from-itself mode collapsing</td><td>Model collapse</td><td class="num">18</td></tr>
+<tr><td>Rotating world</td><td>Continual learning; distribution shift</td><td class="num">7</td></tr>
+<tr><td>Tiny Writer: 2 blocks, 4 heads, 64-letter context</td><td>A decoder-only transformer</td><td class="num">8, 9</td></tr>
+<tr><td>Learning from Moby-Dick by guessing the next letter</td><td>Self-supervised pretraining</td><td class="num">7, 10</td></tr>
+<tr><td>The “Creativity” slider</td><td>Sampling temperature</td><td class="num">11</td></tr>
+<tr><td>“Continue from step…”</td><td>Resuming from a checkpoint</td><td class="num">10</td></tr>
+<tr><td>Running on the phone's graphics chip</td><td>GPU inference and training via WebGL</td><td class="num">14, 16</td></tr>
+</table>
+
+<h2>The road to your own language model</h2>
+<p>The plan discussed for your RTX 2060 Super, restated in the book's vocabulary:</p>
+<ol>
+<li><strong>Run models first.</strong> Install LM Studio or Ollama and try a few 4-bit open-weight models in the 3–8B range. It's the quickest way to get a feel for sizes, quantization levels, context and speed on your own card.</li>
+<li><strong>Set up the stack.</strong> NVIDIA driver, Python, PyTorch with CUDA. Train something tiny to confirm the GPU is used.</li>
+<li><strong>A small pretraining run.</strong> A decoder-only transformer of about 10 million parameters, a BPE tokenizer, a few hundred million tokens of public-domain books. FP16 mixed precision (your card has no BF16). About an hour. Watch the loss curve and the samples improve.</li>
+<li><strong>The main run.</strong> About 124 million parameters, GPT-2-small sized, on 2–3 billion tokens, roughly following the Chinchilla rule. Several days to a couple of weeks, with checkpoints so you can stop and resume.</li>
+<li><strong>Make it an assistant.</strong> Supervised fine-tuning on example conversations, so it answers rather than just continuing text.</li>
+<li><strong>Ship it.</strong> Save as safetensors, convert to GGUF, quantize, and load it in LM Studio like any other model. Write a model card. Optionally publish on Hugging Face.</li>
+</ol>
+<div class="box know"><div class="label">Good to know</div>
+<p>Set expectations honestly: a 124M model will write fluent paragraphs that drift off topic, and won't be a reliable source of facts or reasoning. That isn't failure; it is the size GPT-2 small was. What you'll have is a real language model whose every part you understand, which very few people can say.</p></div>
+
+<h2>Where to learn more</h2>
+<p>A short, reliable reading and watching list, from gentle to deep. All are well established and free.</p>
+<ul>
+<li><strong>3Blue1Brown, “Neural networks”</strong> (YouTube series): beautiful visual explanations of neurons, gradient descent, backpropagation, transformers and attention.</li>
+<li><strong>Andrej Karpathy, “Neural Networks: Zero to Hero”</strong> (YouTube) and his <strong>nanoGPT</strong> code: building GPT from scratch, line by line. The best next step for your PC project.</li>
+<li><strong>Jay Alammar, “The Illustrated Transformer”</strong> (blog post): the transformer drawn step by step.</li>
+<li><strong>Hugging Face courses</strong> (huggingface.co/learn): practical courses on using and fine-tuning models.</li>
+<li><strong>fast.ai, “Practical Deep Learning for Coders”</strong>: a hands-on course that starts with working code.</li>
+<li><strong>“Attention Is All You Need”</strong> (Vaswani et al., 2017): the original transformer paper. Short, and readable once you've finished this book.</li>
+</ul>
+
+<h2>A last word</h2>
+<p>Every system in this book, from your 100-parameter network to the largest models in the world, comes down to the same few ideas: numbers in layers, a measure of error, small steps downhill, and a great deal of data. The giant models are not a different kind of thing; they are this book's ideas multiplied by billions, plus a lot of careful engineering.</p>
+<p>The vocabulary will keep growing. New architectures, new tricks and new acronyms arrive every month. But they will almost always be new arrangements of the parts you now know: neurons, layers, attention, experts, tokens, bits and chips. When you meet a new term, ask which of those parts it changes, and you'll usually have it.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>A3B</dt><dd>“3 billion active parameters”, in MoE model names.</dd>
+<dt>Instruct</dt><dd>A model fine-tuned to follow instructions, as opposed to a base model.</dd>
+<dt>Distribution shift</dt><dd>When the data a model meets in use differs from its training data.</dd>
+<dt>Model card</dt><dd>A model's description: what it is, how it was made, its limits and licence.</dd>
+</dl></div>

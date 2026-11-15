@@ -1,0 +1,60 @@
+<!-- part: 1 | num: 2 | title: The artificial neuron | lede: Every AI in this book, from a 100-parameter toy to a trillion-parameter giant, is built from one tiny repeated part. This chapter takes it apart. -->
+
+<h2>Borrowed from the brain, loosely</h2>
+<p>Your brain contains roughly 86 billion nerve cells called neurons. Each one receives signals from thousands of others through branches called <em>dendrites</em>. If the combined signal is strong enough, the neuron “fires”, sending its own signal down a long wire called the <em>axon</em> to the next cells. The connection points, called <em>synapses</em>, can be strong or weak, and learning in the brain largely means changing those strengths.</p>
+<p>In 1958 the psychologist Frank Rosenblatt built a machine based on a simplified version of this idea, called the <dfn>perceptron</dfn>. The <dfn>artificial neuron</dfn> used today is its direct descendant. It is a very rough cartoon of a real neuron: real neurons are far more complex, and modern AI is not a simulation of the brain. But the cartoon turned out to be enough.</p>
+{{fig:bio_neuron|Left: a biological neuron, simplified. Right: the artificial version. Inputs arrive, each is scaled by a weight, everything is added up with a bias, and an activation function decides the output.}}
+
+<h2>What one neuron does</h2>
+<p>An artificial neuron does three things, in order:</p>
+<ol>
+<li><strong>Multiply</strong> each input by its own <dfn data-idx="weight">weight</dfn>. A weight says how much that input matters, and whether it pushes the answer up (positive weight) or down (negative weight).</li>
+<li><strong>Add</strong> everything up, plus one extra number called the <dfn>bias</dfn>. The bias shifts how easily the neuron switches on.</li>
+<li><strong>Squash</strong> the total through an <dfn>activation function</dfn>, which turns it into the neuron's output.</li>
+</ol>
+<p>That is all. Multiply, add, squash. Everything else in this book is this, repeated billions of times.</p>
+
+<h3>A worked example: should I go to the beach?</h3>
+<p>Imagine a neuron that decides whether you go to the beach. It has three inputs, each 1 (yes) or 0 (no): <em>Is it sunny? Is it warm? Are my friends going?</em></p>
+<table>
+<tr><th>Input</th><th class="num">Value today</th><th class="num">Weight</th><th class="num">Value × weight</th></tr>
+<tr><td>Sunny</td><td class="num">1</td><td class="num">2.0</td><td class="num">2.0</td></tr>
+<tr><td>Warm</td><td class="num">0</td><td class="num">3.0</td><td class="num">0.0</td></tr>
+<tr><td>Friends going</td><td class="num">1</td><td class="num">1.5</td><td class="num">1.5</td></tr>
+<tr><td colspan="3">Bias (I'm a bit lazy)</td><td class="num">−3.0</td></tr>
+<tr><td colspan="3"><strong>Total</strong></td><td class="num"><strong>0.5</strong></td></tr>
+</table>
+<p>The total is positive, so the neuron leans towards “go”. Notice what each number means. Warmth has the biggest weight: it matters most to this person. The bias of −3 means you need at least two good reasons before you move. If tomorrow it is cold and cloudy but your friends are going, the total is 1.5 − 3 = −1.5, and you stay home.</p>
+<div class="box plain"><div class="label">In plain words</div>
+<p>The weights are the neuron's opinions about what matters. The bias is its mood. Learning means adjusting the opinions and the mood until the neuron's answers come out right.</p></div>
+<p>Nobody would set these numbers by hand in a real system. The whole point of the next two chapters is that the network <em>finds</em> good weights and biases by itself, from examples.</p>
+
+<h2>Activation functions: the squash</h2>
+<p>After adding up, the neuron passes the total through an activation function. Why not just use the total directly? Because of a mathematical fact with big consequences: if every neuron just multiplied and added, then stacking a hundred layers of them would be no more powerful than a single layer. Multiplying and adding, repeated, is still only multiplying and adding. You could only ever draw straight lines.</p>
+<p>The activation function adds a bend. Bends, stacked up, can make any shape. This bendiness is called <dfn data-idx="non-linearity">non-linearity</dfn>, and it is what lets neural networks learn curved, complicated patterns like the spiral in Tiny AI.</p>
+{{fig:activations|Five common activation functions. The horizontal axis is the neuron's total; the vertical axis is what it outputs. Each adds a different kind of bend.}}
+
+<h3>The common ones</h3>
+<ul>
+<li><dfn data-idx="step function">Step</dfn>: output 1 if the total is positive, else 0. The original perceptron used this. It is a hard on/off switch, which makes learning difficult, so it is rarely used now.</li>
+<li><dfn>Sigmoid</dfn>: a smooth S-curve from 0 to 1. Useful when you want a probability, such as “how likely is this email spam?” Tiny AI's output neuron uses one.</li>
+<li><dfn data-idx="tanh">Tanh</dfn>: like sigmoid, but from −1 to 1. Tiny AI's hidden neurons use it.</li>
+<li><dfn data-idx="ReLU">ReLU</dfn> (rectified linear unit): if the total is negative, output 0; otherwise pass it through unchanged. It sounds too simple to work, but it trains fast and became the default around 2012.</li>
+<li><dfn data-idx="GELU">GELU</dfn> and <dfn data-idx="SiLU / Swish">SiLU</dfn>: smooth versions of ReLU with a small dip below zero. Most modern language models use one of these, often inside a slightly fancier arrangement called <em>SwiGLU</em>.</li>
+</ul>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Think of a dimmer switch. A step function is a light switch: off or on. Sigmoid is a dimmer that can never go fully off or fully bright. ReLU is a dimmer that stays off until you pass a point, then gets brighter the further you turn it. The shape of the dimmer changes what kinds of lighting patterns a room full of them can make.</p></div>
+
+<h2>One neuron draws a line</h2>
+<p>A single neuron with two inputs can only split the world with a straight line: everything on one side is “yes”, everything on the other is “no”. That is why, when growing mode started Tiny AI with too few neurons, it could only draw a straight boundary through the dots. To curve the boundary around the crescents or the spiral, it needed more neurons working together. Putting neurons together is the subject of the next chapter.</p>
+<div class="box know"><div class="label">Good to know</div>
+<p>In 1969 a famous book, <em>Perceptrons</em>, proved that a single perceptron cannot learn even a simple pattern called XOR (“one or the other, but not both”), because no straight line separates it. Interest in neural networks collapsed for over a decade. The fix, more layers, was known in principle, but nobody yet had a good way to train them. That arrived in 1986 with backpropagation (Chapter 4).</p></div>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Neuron</dt><dd>Multiply inputs by weights, add them with a bias, squash the result.</dd>
+<dt>Weight</dt><dd>How much one input matters to one neuron.</dd>
+<dt>Bias</dt><dd>A neuron's built-in lean towards on or off.</dd>
+<dt>Activation function</dt><dd>The bend applied after adding up: ReLU, GELU, sigmoid, tanh.</dd>
+<dt>Non-linearity</dt><dd>The bendiness that lets stacked neurons learn curved patterns.</dd>
+<dt>Perceptron</dt><dd>The original 1958 artificial neuron, with a step activation.</dd>
+</dl></div>

@@ -1,0 +1,73 @@
+<!-- part: 1 | num: 4 | title: How a network learns | lede: A network starts as random numbers that know nothing. Here is the loop that slowly turns them into knowledge: guess, measure the mistake, nudge, repeat. -->
+
+<h2>The starting point: random</h2>
+<p>A new network's weights and biases are set to small random numbers. This is called <dfn>initialisation</dfn>. At this point the network is useless: its answers are random, as you saw on the first sample from Tiny Writer, which was pure gibberish. Everything a network knows, it learns by repeating one loop millions of times:</p>
+<ol>
+<li><strong>Guess.</strong> Run an example through the network (the forward pass).</li>
+<li><strong>Measure the mistake.</strong> Compare the guess with the right answer.</li>
+<li><strong>Work out who to blame.</strong> For every weight, figure out whether nudging it up or down would have made the mistake smaller.</li>
+<li><strong>Nudge.</strong> Move every weight a tiny step in the helpful direction.</li>
+</ol>
+<p>This chapter goes through each step.</p>
+
+<h2>Measuring the mistake: loss</h2>
+<p>To learn, the network needs a single number that says how wrong it was. That number is the <dfn>loss</dfn>, and the formula that computes it is the <dfn>loss function</dfn> (also called the cost function or objective). Lower loss is better. Zero means perfect.</p>
+<p>Two loss functions cover most cases:</p>
+<ul>
+<li><dfn data-idx="mean squared error">Mean squared error</dfn>, for predicting amounts (a price, a temperature): take the difference between guess and truth, square it so negatives don't cancel out, and average.</li>
+<li><dfn>Cross-entropy</dfn>, for choosing between options (spam or not, which word comes next): it measures how <em>surprised</em> the network was by the right answer. If it gave the right answer 90% probability, the loss is small. If it gave it 1%, the loss is large.</li>
+</ul>
+<div class="box yours"><div class="label">In your projects</div>
+<p>Tiny Writer showed cross-entropy loss directly. Its starting value of about 4.56 is exactly what you get by guessing randomly among 96 characters. Every drop below that line was something it had learned.</p></div>
+
+<h2>Finding the way down: gradient descent</h2>
+<p>Picture every possible setting of the weights as a location in a vast landscape, where the height at each spot is the loss. Good weights are in the valleys. Training means walking downhill.</p>
+<div class="box analogy"><div class="label">Analogy</div>
+<p>You are on a mountain in thick fog and want to reach the valley. You can't see the valley, but you can feel the slope under your feet. So you take a step in the steepest downhill direction, feel the slope again, take another step, and repeat. You will reach low ground without ever seeing the map. That is gradient descent.</p></div>
+<p>The “slope under your feet” is called the <dfn>gradient</dfn>. For each weight, it says how much the loss would change if that weight were nudged up a little. The method of repeatedly stepping against the gradient is called <dfn>gradient descent</dfn>.</p>
+{{fig:descent|Gradient descent on a one-weight loss curve. Each dot is one step. The steps are big where the slope is steep and shrink as the ball nears the bottom.}}
+<p>A real network does not have one weight; it has thousands or billions, so the landscape has that many dimensions. Nobody can picture that, but the maths works the same way: the gradient is just a list with one slope per weight.</p>
+
+<h2>Step size: the learning rate</h2>
+<p>How big a step should you take? That number is the <dfn>learning rate</dfn>, one of the most important settings in training.</p>
+{{fig:lr_compare|The same landscape with three learning rates. Too small: progress is painfully slow. About right: steady arrival. Too large: the steps overshoot and bounce around, or fly off entirely.}}
+<p>Settings like the learning rate, which you choose before training rather than the network learning them, are called <dfn data-idx="hyperparameter">hyperparameters</dfn>. Others include the number of layers, the batch size, and how long to train. Choosing them well is part science and part experience. Large models usually use a <dfn>learning-rate schedule</dfn>: start small (a “warm-up”), rise, then slowly decrease, taking smaller and more careful steps near the end.</p>
+
+<h2>Who to blame: backpropagation</h2>
+<p>For a network with millions of weights, how do you find the gradient for every single one? Testing each weight separately would take forever. The answer is <dfn>backpropagation</dfn>, usually shortened to backprop, popularised in 1986 by David Rumelhart, Geoffrey Hinton and Ronald Williams.</p>
+<p>Backprop works backwards from the mistake. The output layer can see directly how wrong it was. It passes a share of the blame to each neuron in the layer before, in proportion to how much that neuron contributed. Those neurons pass blame back to the layer before them, and so on, all the way to the first layer. One backward sweep gives the gradient for every weight at once, for about the cost of two forward passes.</p>
+{{fig:backprop|The forward pass carries data to an answer (top). Backpropagation carries the blame for the mistake back through the same connections (bottom), so every weight learns which way to move.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A restaurant gets a complaint that the soup was too salty. The head chef asks the cooks who touched it. The cook who added stock says the stock came salty from the prep station. The prep station checks which ingredient. Blame flows backwards along the chain, and each person adjusts their own part a little. Nobody needs to understand the whole kitchen.</p></div>
+<p>Mathematically, backprop is an application of a rule from calculus called the <dfn>chain rule</dfn>. You never need to do it by hand: libraries like PyTorch compute it automatically. That feature is called <dfn data-idx="automatic differentiation (autograd)">automatic differentiation</dfn>, or autograd. Tiny AI does its backprop with about fifteen lines of hand-written code; Tiny Writer lets TensorFlow do it.</p>
+
+<h2>Batches, steps and epochs</h2>
+<p>Computing the loss over every example before taking a single step would be slow. Instead, training uses a small random handful of examples at a time, called a <dfn>batch</dfn> (or mini-batch). The network averages the gradients over the batch and takes one step. Because each batch is random, the steps are a little noisy, which is why this is called <dfn data-idx="stochastic gradient descent (SGD)">stochastic gradient descent</dfn> (SGD); “stochastic” means random. The noise turns out to help: it shakes the network out of shallow dips.</p>
+<ul>
+<li>One update is a <dfn data-idx="step (training)">step</dfn> (or iteration).</li>
+<li>One full pass through all the training data is an <dfn>epoch</dfn>.</li>
+<li>The <dfn>batch size</dfn> is how many examples go into each step: 16 in both of your projects; often millions of tokens per step for large language models.</li>
+</ul>
+
+<h2>Smarter steps: optimisers</h2>
+<p>The method that decides exactly how to step is called the <dfn>optimiser</dfn>. Plain SGD steps straight down the current slope. Improvements add memory:</p>
+<ul>
+<li><dfn>Momentum</dfn> keeps some speed from previous steps, like a ball rolling downhill, so it powers through small bumps and doesn't zigzag.</li>
+<li><dfn data-idx="Adam">Adam</dfn> (2014) also keeps track of how bumpy each weight's slope has been, and gives each weight its own step size. It is the default choice for most networks today, including both of your projects. A popular variant is <em>AdamW</em>.</li>
+</ul>
+<div class="box know"><div class="label">Good to know</div>
+<p>Adam keeps two extra numbers for every weight. That means training needs about three times as much memory for the weights as simply running the model does, before counting anything else. This is one reason training a model needs a much bigger computer than using it (Chapter 15).</p></div>
+
+<h2>Watching it learn: the loss curve</h2>
+<p>The single most useful picture during training is the <dfn>loss curve</dfn>: loss plotted against steps. A healthy curve drops quickly at first, as the easy patterns are learned, then flattens as progress gets harder. Tiny Writer's chart showed exactly that. A curve that jumps upward usually means the learning rate is too high. A curve that flattens far too early usually means the network is too small, or the data too hard, which is exactly what growing mode in Tiny AI used as its signal to add a neuron.</p>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Loss</dt><dd>One number measuring how wrong the network was.</dd>
+<dt>Cross-entropy</dt><dd>Loss for choices: how surprised the network was by the right answer.</dd>
+<dt>Gradient</dt><dd>For each weight, which way and how strongly to nudge it.</dd>
+<dt>Gradient descent</dt><dd>Repeatedly stepping downhill on the loss.</dd>
+<dt>Learning rate</dt><dd>The size of each step.</dd>
+<dt>Backpropagation</dt><dd>Passing blame backwards to get every weight's gradient at once.</dd>
+<dt>Batch, step, epoch</dt><dd>A handful of examples / one update / one pass over all the data.</dd>
+<dt>Optimiser</dt><dd>The rule for taking steps: SGD, momentum, Adam.</dd>
+</dl></div>

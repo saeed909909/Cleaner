@@ -1,0 +1,71 @@
+<!-- part: 2 | num: 6 | title: The family of networks | lede: All neural networks are made of neurons, but they are wired differently for different jobs. Meet the main families, and the name of each one's big idea. -->
+
+<h2>Why different shapes?</h2>
+<p>An MLP, where every neuron connects to every input, can in principle learn anything. In practice it is wasteful. A small photo has about a million pixel values; a single dense layer of a thousand neurons would need a billion weights, and it would have to learn separately that a cat in the top-left corner and a cat in the bottom-right are the same thing.</p>
+<p>So researchers design networks whose wiring matches the shape of the data. The design of a network, meaning which layers it has and how they connect, is called its <dfn>architecture</dfn>. This chapter is a tour of the important ones.</p>
+
+<h2>Convolutional networks: for images</h2>
+<p>A <dfn data-idx="convolutional neural network (CNN)">convolutional neural network</dfn> (CNN) is built around a small window, called a <dfn data-idx="kernel (convolution)">kernel</dfn> or <dfn data-idx="filter (convolution)">filter</dfn>, typically 3 × 3 pixels. The same small set of weights slides across the whole image, step by step, checking every position for one pattern, such as a vertical edge. The result is a new image, a <dfn>feature map</dfn>, which is bright wherever the pattern was found. This sliding operation is called a <dfn>convolution</dfn>.</p>
+{{fig:conv|A 3 × 3 kernel slides across the image. At each position it multiplies the 9 pixels under it by its 9 weights and adds them up, producing one value in the feature map. The same 9 weights are reused everywhere.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Imagine searching a huge map for every church using a small cardboard stencil with a church shape cut out. You slide the stencil over the map square by square, and mark each place where it matches. You don't need a separate stencil for every location: one stencil, reused everywhere. A CNN layer is a stack of dozens of different stencils, each looking for its own pattern.</p></div>
+<p>Because the same few weights are reused everywhere, a convolution layer needs very few parameters, and it recognises a pattern wherever it appears. CNNs also use <dfn>pooling</dfn> layers, which shrink the feature maps (for example keeping only the strongest value in each 2 × 2 square), so later layers see a zoomed-out view. Stack convolutions and pooling, and you get the edges → parts → objects hierarchy from Chapter 3.</p>
+<div class="box know"><div class="label">Good to know</div>
+<p>In 2012 a CNN called <dfn>AlexNet</dfn> won the ImageNet competition, sorting photos into 1,000 categories with far fewer errors than any previous method. It was trained on two gaming graphics cards. This is usually taken as the start of the deep-learning boom.</p></div>
+
+<h2>Recurrent networks: for sequences</h2>
+<p>Text, speech and stock prices come in sequences, where order matters. A <dfn data-idx="recurrent neural network (RNN)">recurrent neural network</dfn> (RNN) reads a sequence one item at a time. Alongside each new item, it receives its own output from the previous step, a running summary called the <dfn>hidden state</dfn>. The network carries this memory forward as it reads.</p>
+{{fig:rnn|An RNN “unrolled” over time. The same network (the same weights) reads one word per step and passes its hidden state, its memory, to the next step.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>An RNN reads like a person with a small notepad who may only look at one word at a time. After each word they update their notes, then the word is gone forever. By the end of a long chapter, details from page one have been written over many times.</p></div>
+<p>That last point is the RNN's weakness: it struggles to remember things from far back. The <dfn data-idx="LSTM">long short-term memory</dfn> network (LSTM, 1997) added <em>gates</em>, small learned switches that decide what to write into memory, what to keep, and what to erase. LSTMs, and a simpler cousin called the <dfn data-idx="GRU">GRU</dfn>, powered speech recognition and translation until about 2017. But they still read one step at a time, which makes them slow to train on modern hardware. Transformers replaced them.</p>
+
+<h2>Transformers: read everything at once</h2>
+<p>The <dfn data-idx="transformer">transformer</dfn>, introduced in 2017, drops the step-by-step reading. It looks at the whole sequence at once and lets every word directly check every other word for relevance, using a mechanism called <em>attention</em>. That makes it both better at long-range connections and much faster to train on GPUs, because all positions are processed in parallel. Almost every modern language model, and many image and audio models, is a transformer. Chapter 9 is entirely about it.</p>
+
+<h2>Autoencoders: squeeze and rebuild</h2>
+<p>An <dfn>autoencoder</dfn> is trained to copy its input to its output, through a narrow bottleneck in the middle. The first half, the <dfn>encoder</dfn>, must squeeze the input into a few numbers; the second half, the <dfn>decoder</dfn>, must rebuild the original from them. To succeed, the bottleneck has to capture what really matters about the input. The compressed description is called the <dfn data-idx="latent space">latent</dfn> representation, and the space of all such descriptions is the latent space.</p>
+{{fig:autoencoder|An autoencoder: the encoder compresses the input into a small latent code, and the decoder rebuilds the input from it.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>Describing a friend's face over the phone so someone can sketch it. You can't send every detail, so you pick what matters: round face, big eyebrows, short curly hair. A good description in a few words is a good latent code.</p></div>
+<p>The words <em>encoder</em> and <em>decoder</em> come back in language models: some models are encoder-only (good at understanding text), some decoder-only (good at writing it), and GPT-style chat models are decoder-only.</p>
+
+<h2>GANs: the forger and the detective</h2>
+<p>A <dfn data-idx="generative adversarial network (GAN)">generative adversarial network</dfn> (GAN, 2014) trains two networks against each other. The <dfn>generator</dfn> creates fake images from random noise. The <dfn>discriminator</dfn> is shown a mix of real and fake images and must spot the fakes. Each gets better by beating the other.</p>
+{{fig:gan|A GAN: the generator tries to fool the discriminator; the discriminator tries to catch it. Both learn from the result.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>An art forger and a detective. Every time the detective spots a fake, the forger studies what gave it away. Every time a fake slips through, the detective studies what they missed. After thousands of rounds, the forgeries are superb.</p></div>
+<p>GANs produced the first startlingly real fake faces around 2018. They are hard to train, because the two networks can fall out of balance, and for most image generation they have been overtaken by diffusion models.</p>
+
+<h2>Diffusion models: sculpting from noise</h2>
+<p>A <dfn data-idx="diffusion model">diffusion model</dfn> learns to remove noise. During training, real images are blurred with more and more random static until nothing is left, and the network learns to undo one step of that damage at a time. To create a new image, you start from pure static and ask the network to “clean it up” again and again. An image appears out of the noise.</p>
+{{fig:diffusion|Diffusion. Training adds noise step by step (left to right); generating runs the process backwards, removing a little noise at each step, starting from pure static.}}
+<div class="box analogy"><div class="label">Analogy</div>
+<p>A sculptor who says the statue was always inside the marble and they just removed what didn't belong. The diffusion model starts with a block of random noise and chips away, step by step, guided by your text description, until an image is left.</p></div>
+<p>Most popular image and video generators use diffusion, usually with a text description steering each step (Chapter 13).</p>
+
+<h2>Graph networks: for connections</h2>
+<p>Some data is neither a grid nor a sequence but a web of connections: molecules (atoms joined by bonds), road maps, social networks. A <dfn data-idx="graph neural network (GNN)">graph neural network</dfn> (GNN) lets each item pass messages to its neighbours, round after round, so each one learns from its surroundings. GNNs are used in drug discovery, weather forecasting and recommendation systems.</p>
+
+<h2>Cheat sheet</h2>
+<table>
+<tr><th>Family</th><th>Big idea</th><th>Good for</th></tr>
+<tr><td>MLP</td><td>Every neuron sees every input</td><td>Simple tables of numbers; parts of bigger models</td></tr>
+<tr><td>CNN</td><td>A small window slides across</td><td>Images, video frames</td></tr>
+<tr><td>RNN / LSTM</td><td>Read in order, carry a memory</td><td>Older speech and text systems</td></tr>
+<tr><td>Transformer</td><td>Attention: every part checks every other</td><td>Language, and increasingly everything</td></tr>
+<tr><td>Autoencoder</td><td>Squeeze through a bottleneck</td><td>Compression, features, cleaning data</td></tr>
+<tr><td>GAN</td><td>Forger versus detective</td><td>Realistic images (older approach)</td></tr>
+<tr><td>Diffusion</td><td>Learn to remove noise</td><td>Image, video and audio generation</td></tr>
+<tr><td>GNN</td><td>Neighbours pass messages</td><td>Molecules, maps, networks</td></tr>
+</table>
+
+<div class="terms"><div class="label">Words from this chapter</div><dl>
+<dt>Architecture</dt><dd>The design of a network: its layers and how they connect.</dd>
+<dt>CNN, convolution</dt><dd>A network that slides small learned windows across an image.</dd>
+<dt>RNN, LSTM</dt><dd>Networks that read in order and carry a memory.</dd>
+<dt>Transformer</dt><dd>Reads everything at once using attention.</dd>
+<dt>Encoder / decoder</dt><dd>The halves that compress and rebuild (or understand and write).</dd>
+<dt>Latent space</dt><dd>The space of compressed descriptions inside a network.</dd>
+<dt>GAN, diffusion</dt><dd>Two ways of generating images: forger versus detective, and denoising.</dd>
+</dl></div>
